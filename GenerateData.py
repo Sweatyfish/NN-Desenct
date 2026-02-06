@@ -90,7 +90,8 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     plt.ylabel('Feature 2')
     plt.title('Generated Clusters')
     plt.colorbar(label='Cluster')
-    plt.savefig("output.png")
+    plt.show()
+    #plt.savefig("output.png")
 
 
 def iterate(NNG):
