@@ -16,7 +16,15 @@ class Neighbour:
 
 NNG: Dict[Vertecie, List[Neighbour]] = {}
 
+#Returns a set of Neighbours neighbours
+def getNeighboursNeighbour(point: Vertecie):
+    listOfNeighbours = NNG[point]
 
+    setOfNN = set()
+    for neighbour in listOfNeighbours:
+        for vert in NNG[neighbour.vert]:
+            setOfNN.add(vert)
+    return (setOfNN)
 
 def getNRandomPoints(n, point_index, data_list):
     """Get n random neighbor indices excluding the point itself"""
@@ -30,22 +38,24 @@ def getDistance (point1, point2):
 def getNNG():
     X, y = make_blobs(n_samples=30, centers=3, n_features=2,
                     random_state=0)
+    vert_list = []
 
+    # Runs over all points
     for i in range(len(X)):
-        # Gets point and converts to Vertecie
-        point_coords = X[i].tolist()
-        point = Vertecie(point_coords)
+        # Adds points to vert_list
+        temp = X[i].tolist()
+        vert_list.append(Vertecie(temp))
 
+    # Runs over all points in vert_list and assigns them neighbours
+    for vert in vert_list:
         #Gets random neigbours
         random_neighbors = getNRandomPoints(k, i, X)
         neighbor_list = []
 
         #Initializes neigbours (with hardcoded distance)
-        for idx in random_neighbors:
-            neighbor_coords = X[idx].tolist()
-            neighbor_vert = Vertecie(neighbor_coords)
-            neighbor_list.append(Neighbour(neighbor_vert, 5.0))  # hardcoded distance of 5.0
-        NNG[point] = neighbor_list
+        for index in random_neighbors:
+            neighbor_list.append(Neighbour(vert_list[index],5.0))
+        NNG[vert] = neighbor_list
 
     return NNG, X, y
 
@@ -59,6 +69,7 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     
     #Draws points
     plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', s=10)
+
     plt.xlabel('Feature 1')
     plt.ylabel('Feature 2')
     plt.title('Generated Clusters')
@@ -67,6 +78,9 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
 
 def main():
     NNG, X, y = getNNG()
+    # for vert in NNG:
+    #     print("Vert", vert.coordinates, "has neighbours", getNeighboursNeighbour(vert))
     draw(NNG, X, y)
+    
 
 main()
