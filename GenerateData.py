@@ -5,13 +5,14 @@ import random
 import scipy.spatial.distance as sci
 
 
-k = 3
-n = 10
+k = 5
+n = 500
 
 class Vertecie:
     def __init__(self, coordinates: List[float], id):
         self.coordinates = coordinates
         self.id = id
+        self.candidates = []
 
 class Neighbour: 
     def __init__(self, vert : Vertecie, distance : float):
@@ -32,8 +33,9 @@ def getNeighboursNeighbour(point: Vertecie):
 
     setOfNN = set()
     for neighbour in listOfNeighbours:
-        for vert in NNG[neighbour.vert]:
-            setOfNN.add(vert)
+        for nNeigbhour in NNG[neighbour.vert]:
+            if nNeigbhour.vert.id != point.id:
+                setOfNN.add(nNeigbhour)
     return (setOfNN)
 
 def getKRandomPoints(k, point_index, data_list):
@@ -43,7 +45,7 @@ def getKRandomPoints(k, point_index, data_list):
 
 def getDistance (point1, point2):
     Dist = sci.pdist([point1, point2], 'euclidean')
-    print (Dist)
+    # print (Dist)
     return Dist
 
 
@@ -61,12 +63,14 @@ def getNNG():
     # Runs over all points in vert_list and assigns them neighbours
     for vert in vert_list:
         #Gets random neigbours
-        random_neighbors = getKRandomPoints(k, i, X)
+        random_neighbors = getKRandomPoints(k, vert.id, vert_list)
+        # print(random_neighbors)
         neighbor_list = []
 
         #Initializes neigbours (with hardcoded distance)
         for index in random_neighbors:
-            neighbor_list.append(Neighbour(vert_list[index],getDistance(vert.coordinates, vert_list[index].coordinates)))
+            # print("looking at points", vert.coordinates, vert_list[index].coordinates)
+            neighbor_list.append(Neighbour(vert_list[index], getDistance(vert.coordinates, vert_list[index].coordinates)))
         NNG[vert] = neighbor_list
 
     return NNG, X, y
@@ -86,16 +90,35 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     plt.ylabel('Feature 2')
     plt.title('Generated Clusters')
     plt.colorbar(label='Cluster')
-    # plt.show()
+    plt.show()
 
 def iterate(NNG):
     for vert in NNG:
-        print(getNeighboursNeighbour(vert))
-    return 0
+        setOfNN = getNeighboursNeighbour(vert)
+        
+        vert.candidates = sorted(NNG[vert],
+                                key=lambda nb: nb.distance[0] if hasattr(nb.distance, '__iter__') else nb.distance, reverse=True)
+        # For every neighbours neighbours
+        for nn in setOfNN:
+            # For every candidate
+            for i in range (len(vert.candidates)):
+                nn.distance = getDistance(vert.coordinates, nn.vert.coordinates)
+                if nn.distance < vert.candidates[i].distance: 
+                    # print(nn.vert.id, nn.distance)
+                    # print(vert.candidates[i].vert.id, vert.candidates[i].distance)
+                    # print("---")
+                    vert.candidates[i] = nn
+                    vert.candidates.sort(key=lambda nb: nb.distance[0] if hasattr(nb.distance, '__iter__') else nb.distance, reverse=True)
+                    break
+    # for vert in NNG:
+        NNG[vert] = vert.candidates
+    return NNG
 
 def main():
     NNG, X, y = getNNG()
-    iterate(NNG)
+    for i in range (50):
+        NNG = iterate(NNG)
+
     draw(NNG, X, y)
     
 
