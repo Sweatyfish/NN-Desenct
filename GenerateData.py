@@ -6,7 +6,7 @@ import scipy.spatial.distance as sci
 
 
 k = 10
-n = 20
+n = 200
 
 class Vertecie:
     def __init__(self, coordinates: List[float], id):
@@ -119,7 +119,7 @@ def main():
     for i in range (50):
         NNG = iterate(NNG)
 
-    draw(NNG, X, y)
+    # draw(NNG, X, y)
     
 
 main()
