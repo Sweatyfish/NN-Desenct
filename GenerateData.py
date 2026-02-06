@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_blobs
 from typing import Dict, List
 import random
+import scipy.spatial.distance as sci
+
 
 
 k = 3
@@ -41,7 +43,9 @@ def getKRandomPoints(k, point_index, data_list):
     return random.sample(other_indices, k)
 
 def getDistance (point1, point2):
-    return 0
+    Dist = sci.pdist([point1, point2], 'euclidean')
+    print (Dist)
+    return Dist
 
 
 def getNNG():
@@ -64,7 +68,7 @@ def getNNG():
 
         #Initializes neigbours (with hardcoded distance)
         for index in random_neighbors:
-            neighbor_list.append(Neighbour(vert_list[index],5.0))
+            neighbor_list.append(Neighbour(vert_list[index],getDistance(vert.coordinates, vert_list[index].coordinates)))
         NNG[vert] = neighbor_list
 
     return NNG, X, y
@@ -88,8 +92,9 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
 
 def iterate(NNG):
     for vert in NNG:
-        print(len(getNeighboursNeighbour(vert)))
-    return 0
+        #print(len(getNeighboursNeighbour(vert)))
+
+        return 0
 
 def main():
     NNG, X, y = getNNG()
