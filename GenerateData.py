@@ -5,15 +5,16 @@ import random
 import scipy.spatial.distance as sci
 
 
-k = 20
-n = 200
-
+k = 10
+n = 300
+# Each point in space is represented as a Vertecie object, which has a list of its neighbours 
+# (as Neighbour objects) and a list of candidates (also as Neighbour objects)
 class Vertecie:
     def __init__(self, coordinates: List[float], id):
         self.coordinates = coordinates
         self.id = id
         self.candidates = []
-
+# Neighbour objects are used to represent the neighbours of a point, and they store the neighbour's Vertecie object and the distance to that neighbour
 class Neighbour: 
     def __init__(self, vert : Vertecie, distance : float):
         self.vert = vert
@@ -24,7 +25,7 @@ class Neighbour:
     
     def __eq__(self, other):
         return self.vert.id == other.vert.id
-
+# NNG is a dictionary that maps each Vertecie to a list of its Neighbour objects
 NNG: Dict[Vertecie, List[Neighbour]] = {}
 
 #Returns a set of Neighbours neighbours
@@ -37,18 +38,19 @@ def getNeighboursNeighbour(point: Vertecie):
             if nNeigbhour.vert.id != point.id:
                 setOfNN.add(nNeigbhour)
     return (setOfNN)
-
+# Gets k random points from the dataset, excluding the point itself, and returns their indices
 def getKRandomPoints(k, point_index, data_list):
     """Get n random neighbor indices excluding the point itself"""
     other_indices = [i for i in range(len(data_list)) if i != point_index]
     return random.sample(other_indices, k)
-
+# Gets the distance between two points using scipy's pdist function, which computes the pairwise distance 
+# between two points in a N dimension space
 def getDistance (point1, point2):
     Dist = sci.pdist([point1, point2], 'euclidean')
     # print (Dist)
     return Dist
 
-
+# Generates the NNG by creating a dataset using make_blobs, initializing the Vertecie objects and their neighbours, and storing them in the NNG dictionary
 def getNNG():
     X, y = make_blobs(n_samples=n, centers=3, n_features=2,
                     random_state=0)
@@ -74,7 +76,7 @@ def getNNG():
         NNG[vert] = neighbor_list
 
     return NNG, X, y
-
+# Draws the NNG by plotting lines between points and their neighbours, and coloring the points according to their cluster labels
 def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     # Plot all lines from points to neighbors
     for vert in NNG:
@@ -91,6 +93,8 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     plt.title('Generated Clusters')
     plt.colorbar(label='Cluster')
     plt.show()
+# Iterates over the NNG and updates the candidates for each point based on the distances to its neighbours and their neighbours.    #plt.savefig("output.png")
+
 
 def iterate(NNG):
     for vert in NNG:
@@ -113,10 +117,11 @@ def iterate(NNG):
     # for vert in NNG:
         NNG[vert] = vert.candidates
     return NNG
-
+# Main function that generates the NNG, iterates over it for a number of iterations, and then draws the final NNG.
 def main():
     NNG, X, y = getNNG()
-    for i in range (50):
+    for i in range (10):
+        print(i)
         NNG = iterate(NNG)
 
     # draw(NNG, X, y)
