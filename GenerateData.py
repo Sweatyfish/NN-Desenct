@@ -5,7 +5,7 @@ import random
 import scipy.spatial.distance as sci
 
 
-k = 10
+k = 20
 n = 200
 
 class Vertecie:
