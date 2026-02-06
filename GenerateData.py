@@ -3,9 +3,19 @@ from sklearn.datasets import make_blobs
 from typing import Dict, List
 import random
 
-k = 5
+k = 2
 
-Neighbours: Dict[int, List[tuple]] = {}
+class Vertecie:
+    def __init__(self, coordinates: List[float]):
+        self.coordinates = coordinates
+
+class Neighbour: 
+    def __init__(self, vert : Vertecie, distance : float):
+        self.vert = vert
+        self.distance = distance
+
+NNG: Dict[Vertecie, List[Neighbour]] = {}
+
 
 
 def getNRandomPoints(n, point_index, data_list):
@@ -13,26 +23,33 @@ def getNRandomPoints(n, point_index, data_list):
     other_indices = [i for i in range(len(data_list)) if i != point_index]
     return random.sample(other_indices, n)
 
+def getDistance (point1, point2):
+    return 0
 
 X, y = make_blobs(n_samples=30, centers=3, n_features=2,
                   random_state=0)
-# print(X.shape)
-# print(X)
 
 for i in range(len(X)):
-    point = X[i]
+    # Gets point and converts to Vertecie
+    point_coords = X[i].tolist()
+    point = Vertecie(point_coords)
+
     random_neighbors = getNRandomPoints(k, i, X)
-    Neighbours[i] = [X[idx] for idx in random_neighbors]
-    print(f"Point {i}: {point}")
-print(Neighbours)
+    neighbor_list = []
+    for idx in random_neighbors:
+        neighbor_coords = X[idx].tolist()
+        neighbor_vert = Vertecie(neighbor_coords)
+        neighbor_list.append(Neighbour(neighbor_vert, 5.0))  # hardcoded distance of 5.0
+    NNG[point] = neighbor_list
 
-for i in range(len(X)):
-    point = X[i]
-    neighbors = Neighbours[i]
-    for neighbor in neighbors:
-        plt.plot([point[0], neighbor[0]], [point[1], neighbor[1]], 'r-', alpha=0.5)
+    #This draws
+    for neighbor in NNG[point]:
+        nx, ny = neighbor.vert.coordinates
+        plt.plot([point.coordinates[0], nx], [point.coordinates[1], ny], 'r-', alpha=0.03)
 
-plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', s=100)
+
+
+plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', s=10)
 plt.xlabel('Feature 1')
 plt.ylabel('Feature 2')
 plt.title('Generated Clusters')
