@@ -3,9 +3,8 @@ from sklearn.datasets import make_blobs
 from typing import Dict, List
 import random
 
-
 k = 3
-n = 100
+n = 10
 
 class Vertecie:
     def __init__(self, coordinates: List[float], id):
@@ -16,7 +15,7 @@ class Neighbour:
     def __init__(self, vert : Vertecie, distance : float):
         self.vert = vert
         self.distance = distance
-        
+
     def __hash__(self):
         return hash(self.vert.id)
     
@@ -59,7 +58,6 @@ def getNNG():
     for vert in vert_list:
         #Gets random neigbours
         random_neighbors = getKRandomPoints(k, i, X)
-        print(random_neighbors)
         neighbor_list = []
 
         #Initializes neigbours (with hardcoded distance)
@@ -88,7 +86,7 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
 
 def iterate(NNG):
     for vert in NNG:
-        print(len(getNeighboursNeighbour(vert)))
+        print(getNeighboursNeighbour(vert))
     return 0
 
 def main():
