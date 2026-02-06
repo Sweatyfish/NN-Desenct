@@ -3,16 +3,25 @@ from sklearn.datasets import make_blobs
 from typing import Dict, List
 import random
 
-k = 2
+
+k = 3
+n = 100
 
 class Vertecie:
-    def __init__(self, coordinates: List[float]):
+    def __init__(self, coordinates: List[float], id):
         self.coordinates = coordinates
+        self.id = id
 
 class Neighbour: 
     def __init__(self, vert : Vertecie, distance : float):
         self.vert = vert
         self.distance = distance
+        
+    def __hash__(self):
+        return hash(self.vert.id)
+    
+    def __eq__(self, other):
+        return self.vert.id == other.vert.id
 
 NNG: Dict[Vertecie, List[Neighbour]] = {}
 
@@ -26,17 +35,17 @@ def getNeighboursNeighbour(point: Vertecie):
             setOfNN.add(vert)
     return (setOfNN)
 
-def getNRandomPoints(n, point_index, data_list):
+def getKRandomPoints(k, point_index, data_list):
     """Get n random neighbor indices excluding the point itself"""
     other_indices = [i for i in range(len(data_list)) if i != point_index]
-    return random.sample(other_indices, n)
+    return random.sample(other_indices, k)
 
 def getDistance (point1, point2):
     return 0
 
 
 def getNNG():
-    X, y = make_blobs(n_samples=30, centers=3, n_features=2,
+    X, y = make_blobs(n_samples=n, centers=3, n_features=2,
                     random_state=0)
     vert_list = []
 
@@ -44,12 +53,13 @@ def getNNG():
     for i in range(len(X)):
         # Adds points to vert_list
         temp = X[i].tolist()
-        vert_list.append(Vertecie(temp))
+        vert_list.append(Vertecie(temp, i))
 
     # Runs over all points in vert_list and assigns them neighbours
     for vert in vert_list:
         #Gets random neigbours
-        random_neighbors = getNRandomPoints(k, i, X)
+        random_neighbors = getKRandomPoints(k, i, X)
+        print(random_neighbors)
         neighbor_list = []
 
         #Initializes neigbours (with hardcoded distance)
@@ -65,7 +75,7 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
         for neighbor in NNG[vert]:
             nx, ny = neighbor.vert.coordinates
             #Draws lines
-            plt.plot([vert.coordinates[0], nx], [vert.coordinates[1], ny], 'r-', alpha=0.03)
+            plt.plot([vert.coordinates[0], nx], [vert.coordinates[1], ny], 'r-', alpha=0.1)
     
     #Draws points
     plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', s=10)
@@ -74,12 +84,16 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     plt.ylabel('Feature 2')
     plt.title('Generated Clusters')
     plt.colorbar(label='Cluster')
-    plt.show()
+    # plt.show()
+
+def iterate(NNG):
+    for vert in NNG:
+        print(len(getNeighboursNeighbour(vert)))
+    return 0
 
 def main():
     NNG, X, y = getNNG()
-    # for vert in NNG:
-    #     print("Vert", vert.coordinates, "has neighbours", getNeighboursNeighbour(vert))
+    iterate(NNG)
     draw(NNG, X, y)
     
 
