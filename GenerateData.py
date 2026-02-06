@@ -5,8 +5,8 @@ import random
 import scipy.spatial.distance as sci
 
 
-k = 5
-n = 500
+k = 10
+n = 20
 
 class Vertecie:
     def __init__(self, coordinates: List[float], id):
@@ -103,7 +103,7 @@ def iterate(NNG):
             # For every candidate
             for i in range (len(vert.candidates)):
                 nn.distance = getDistance(vert.coordinates, nn.vert.coordinates)
-                if nn.distance < vert.candidates[i].distance: 
+                if nn.distance < vert.candidates[i].distance and nn.vert.id not in [c.vert.id for c in vert.candidates]: 
                     # print(nn.vert.id, nn.distance)
                     # print(vert.candidates[i].vert.id, vert.candidates[i].distance)
                     # print("---")
