@@ -6,6 +6,8 @@ Currently, we use:
 
 - `matplotlib.pyplot` to visualize the graph.
 - `make_blobs` from `sklearn` to generate synthetic data points.
+- `Bencmark` Custom package the measures accuracy based on brute-force
+- `scipy.spatial.distance` to measure "distance" between two points
 
 ## Version 1
 
