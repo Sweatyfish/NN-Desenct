@@ -8,8 +8,15 @@ from Benchmark import evaluate_accuracy
 bencmark_Result = True
 k = 10
 n = 100
-iterateions = 30
-# Each point in space is represented as a Vertecie object, which has a list of its neighbours 
+#Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
+#Paper delta is 0.001
+Delta = 0.02
+#The maximum number of iterations allowed
+Iterationcelling = 50
+
+
+
+# Each point in space is represented as a Vertecie object, which has a list of its neighbours
 # (as Neighbour objects) and a list of candidates (also as Neighbour objects)
 class Vertecie:
     def __init__(self, coordinates: List[float], id):
@@ -99,11 +106,15 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
 
 
 def iterate(NNG):
+    counter = 0
     for vert in NNG:
         setOfNN = getNeighboursNeighbour(vert)
         
         vert.candidates = sorted(NNG[vert],
                                 key=lambda nb: nb.distance[0] if hasattr(nb.distance, '__iter__') else nb.distance, reverse=True)
+
+        #Save the original neighbors to get a count of newly added neighbors
+        original_ids = {c.vert.id for c in vert.candidates}        
         # For every neighbours neighbours
         for nn in setOfNN:
             # For every candidate
@@ -116,15 +127,29 @@ def iterate(NNG):
                     vert.candidates[i] = nn
                     vert.candidates.sort(key=lambda nb: nb.distance[0] if hasattr(nb.distance, '__iter__') else nb.distance, reverse=True)
                     break
-    # for vert in NNG:
+
+        #Here newly added neighbors are counted by taking the difference between the original neighbors and the new candidates
+        new_ids = {c.vert.id for c in vert.candidates}
+        new_neighbors = len(new_ids - original_ids)
+        counter += new_neighbors
+    # Unfrezze graph and set new neighbors
+    for vert in NNG:
         NNG[vert] = vert.candidates
-    return NNG
+    return NNG, counter
 # Main function that generates the NNG, iterates over it for a number of iterations, and then draws the final NNG.
 def main():
     NNG, X, y = getNNG()
-    for i in range (iterateions):
-        print(i)
-        NNG = iterate(NNG)
+
+    newNeighborsFound = 0
+    iterationcounter = 0
+    while True:
+        NNG, newNeighborsFound = iterate(NNG)
+
+        if newNeighborsFound == 0 or newNeighborsFound < Delta * n * k or iterationcounter >= Iterationcelling:
+            break
+        print("Iteration number: ",iterationcounter)
+        print("new neighbors found: ", newNeighborsFound)
+        iterationcounter += 1
 
     if bencmark_Result:
         accuracy = evaluate_accuracy(NNG, k)
