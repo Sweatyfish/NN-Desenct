@@ -3,10 +3,12 @@ from sklearn.datasets import make_blobs
 from typing import Dict, List
 import random
 import scipy.spatial.distance as sci
+from Benchmark import evaluate_accuracy
 
-
+bencmark_Result = True
 k = 10
-n = 300
+n = 100
+iterateions = 30
 # Each point in space is represented as a Vertecie object, which has a list of its neighbours 
 # (as Neighbour objects) and a list of candidates (also as Neighbour objects)
 class Vertecie:
@@ -120,11 +122,14 @@ def iterate(NNG):
 # Main function that generates the NNG, iterates over it for a number of iterations, and then draws the final NNG.
 def main():
     NNG, X, y = getNNG()
-    for i in range (10):
+    for i in range (iterateions):
         print(i)
         NNG = iterate(NNG)
 
-    # draw(NNG, X, y)
+    if bencmark_Result:
+        accuracy = evaluate_accuracy(NNG, k)
+        print(f"Accuracy: {accuracy:.4f}")
+    draw(NNG, X, y)
     
 
 main()
