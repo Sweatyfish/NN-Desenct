@@ -6,7 +6,7 @@ import scipy.spatial.distance as sci
 from Benchmark import evaluate_accuracy
 
 bencmark_Result = True
-k = 10
+k = 3
 n = 100
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
