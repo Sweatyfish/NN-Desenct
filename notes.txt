@@ -1,2 +1,3 @@
 Old And New neighbors needs to be implemented
 Ask Martin about a "better" solution for calculating Candidate Notes
+GetNN Still returns first hand neighbors however it breaks if we fix this
