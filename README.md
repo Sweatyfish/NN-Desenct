@@ -13,8 +13,8 @@ You need to run:
 
 - `pip install pytest pytest-cov`
 - `pip install scikit-learn`
-- `pip install `matplotlib`
-- `pip install `scipy`
+- `pip install matplotlib`
+- `pip install scipy`
 
 Still missing from paper
 `Local Join`
