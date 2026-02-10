@@ -9,7 +9,12 @@ Currently, we use:
 - `Bencmark` Custom package the measures accuracy based on brute-force
 - `scipy.spatial.distance` to measure "distance" between two points
 
-You need to run ´pip install pytest pytest-cov´
+You need to run:
+
+- `pip install pytest pytest-cov`
+- `pip install scikit-learn`
+- `pip install `matplotlib`
+- `pip install `scipy`
 
 Still missing from paper
 `Local Join`
