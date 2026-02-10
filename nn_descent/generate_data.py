@@ -51,7 +51,8 @@ def getNeighboursNeighbour(point: Vertecie):
         for nNeigbhour in NNG[neighbour.vert]:
             if nNeigbhour.vert.id != point.id:
                 setOfNN.add(nNeigbhour)
-    return (setOfNN)
+    return(setOfNN)
+
 # Gets k random points from the dataset, excluding the point itself, and returns their indices
 def getKRandomPoints(k, point_index, data_list):
     """Get n random neighbor indices excluding the point itself"""
