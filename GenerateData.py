@@ -10,14 +10,19 @@ from functools import total_ordering
 
 
 bencmark_Result = True
-k = 8
+k = 20  
 n = 200
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
 Delta = 0.02
 #The maximum number of iterations allowed
-Iterationcelling = 50
-
+Iterationcelling = 20
+def _heapreplace_max(heap, item):
+    """Maxheap version of a heappop followed by a heappush."""
+    returnitem = heap[0]    # raises appropriate IndexError if heap is empty
+    heap[0] = item
+    heapq._siftup_max(heap, 0)
+    return returnitem
 
 
 # Each point in space is represented as a Vertecie object, which has a list of its neighbours
@@ -27,8 +32,8 @@ class Vertecie:
         self.coordinates = coordinates
         self.id = id
         self.candidates = []
-        heapq._heapify_max(self.candidates)
-# Neighbour objects are used to represent the neighbours of a point, and they store the neighbour's Vertecie object and the distance to that neighbour
+        
+    # Neighbour objects are used to represent the neighbours of a point, and they store the neighbour's Vertecie object and the distance to that neighbour
 @total_ordering
 class Neighbour: 
     def __init__(self, vert : Vertecie, distance : float):
@@ -114,7 +119,6 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     plt.show()
 # Iterates over the NNG and updates the candidates for each point based on the distances to its neighbours and their neighbours.    #plt.savefig("output.png")
 
-
 def iterate(NNG):
     counter = 0
     for vert in NNG:
@@ -122,32 +126,31 @@ def iterate(NNG):
         
         vert.candidates = (NNG[vert])
         heapq._heapify_max(vert.candidates)
-         #                       key=lambda nb: nb.distance[0] if hasattr(nb.distance, '__iter__') else nb.distance, reverse=True)
 
         # Save the original neighbors to get a count of newly added neighbors
         original_ids = {c.vert.id for c in vert.candidates}
         # Maintain a set of current candidate ids for O(1) membership checks
         candidate_ids = set(original_ids)
-
         # For every neighbour-of-neighbour
         for nn in setOfNN:
-
+            
             if nn.vert.id in candidate_ids or nn.vert.id == vert.id:
                 continue
-            nn.distance = getDistance(vert.coordinates, nn.vert.coordinates)
+            nn.distance = (getDistance(vert.coordinates, nn.vert.coordinates))
             #heappush(vert.candidates, nn)
             if nn.distance < vert.candidates[0].distance: 
                 #_heapreplace_max(vert.candidates, nn)
-                candidate_ids.add(nn.vert.id)
-                candidate_ids.remove(vert.candidates[0].vert.id)
-                heapq.heappushpop(vert.candidates, nn)
+                #candidate_ids.add(nn.vert.id)
+                #candidate_ids.remove(vert.candidates[0].vert.id)
+                _heapreplace_max(vert.candidates, nn)
                 
-                #heapreplace_max(vert.candidates, nn)    
 
         #Here newly added neighbors are counted by taking the difference between the original neighbors and the new candidates
         new_ids = {c.vert.id for c in vert.candidates}
         new_neighbors = len(new_ids - original_ids)
         counter += new_neighbors
+        #print(vert.id)
+      
     # Unfrezze graph and set new neighbors
     for vert in NNG:
         NNG[vert] = vert.candidates
