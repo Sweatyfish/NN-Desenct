@@ -1,9 +1,13 @@
+import heapq
 import matplotlib.pyplot as plt
 from sklearn.datasets import make_blobs
 from typing import Dict, List
 import random
 import scipy.spatial.distance as sci
 from Benchmark import evaluate_accuracy
+from functools import total_ordering
+
+
 
 bencmark_Result = True
 k = 10
@@ -12,8 +16,13 @@ n = 200
 #Paper delta is 0.001
 Delta = 0.02
 #The maximum number of iterations allowed
-Iterationcelling = 50
-
+Iterationcelling = 20
+def _heapreplace_max(heap, item):
+    """Maxheap version of a heappop followed by a heappush."""
+    returnitem = heap[0]    # raises appropriate IndexError if heap is empty
+    heap[0] = item
+    heapq._siftup_max(heap, 0)
+    return returnitem
 
 
 # Each point in space is represented as a Vertecie object, which has a list of its neighbours
@@ -23,7 +32,9 @@ class Vertecie:
         self.coordinates = coordinates
         self.id = id
         self.candidates = []
-# Neighbour objects are used to represent the neighbours of a point, and they store the neighbour's Vertecie object and the distance to that neighbour
+        
+    # Neighbour objects are used to represent the neighbours of a point, and they store the neighbour's Vertecie object and the distance to that neighbour
+@total_ordering
 class Neighbour: 
     def __init__(self, vert : Vertecie, distance : float):
         self.vert = vert
@@ -34,6 +45,10 @@ class Neighbour:
     
     def __eq__(self, other):
         return self.vert.id == other.vert.id
+    
+    def __lt__(self, other):
+        # For max heap: return True if self > other (inverted logic)
+        return self.distance > other.distance
 # NNG is a dictionary that maps each Vertecie to a list of its Neighbour objects
 NNG: Dict[Vertecie, List[Neighbour]] = {}
 
@@ -57,8 +72,8 @@ def getKRandomPoints(k, point_index, data_list):
 # between two points in a N dimension space
 def getDistance (point1, point2):
     Dist = sci.pdist([point1, point2], 'euclidean')
-    # print (Dist)
-    return Dist
+    # return scalar float instead of 1-element array
+    return float(Dist[0])
 
 # Generates the NNG by creating a dataset using make_blobs, initializing the Vertecie objects and their neighbours, and storing them in the NNG dictionary
 def getNNG():
@@ -105,34 +120,38 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     # plt.show()
 # Iterates over the NNG and updates the candidates for each point based on the distances to its neighbours and their neighbours.    #plt.savefig("output.png")
 
-
 def iterate(NNG):
     counter = 0
     for vert in NNG:
         setOfNN = getNeighboursNeighbour(vert)
         
-        vert.candidates = sorted(NNG[vert],
-                                key=lambda nb: nb.distance[0] if hasattr(nb.distance, '__iter__') else nb.distance, reverse=True)
+        vert.candidates = (NNG[vert])
+        heapq._heapify_max(vert.candidates)
 
-        #Save the original neighbors to get a count of newly added neighbors
-        original_ids = {c.vert.id for c in vert.candidates}        
-        # For every neighbours neighbours
+        # Save the original neighbors to get a count of newly added neighbors
+        original_ids = {c.vert.id for c in vert.candidates}
+        # Maintain a set of current candidate ids for O(1) membership checks
+        candidate_ids = set(original_ids)
+        # For every neighbour-of-neighbour
         for nn in setOfNN:
-            # For every candidate
-            for i in range (len(vert.candidates)):
-                nn.distance = getDistance(vert.coordinates, nn.vert.coordinates)
-                if nn.distance < vert.candidates[i].distance and nn.vert.id not in [c.vert.id for c in vert.candidates]: 
-                    # print(nn.vert.id, nn.distance)
-                    # print(vert.candidates[i].vert.id, vert.candidates[i].distance)
-                    # print("---")
-                    vert.candidates[i] = nn
-                    vert.candidates.sort(key=lambda nb: nb.distance[0] if hasattr(nb.distance, '__iter__') else nb.distance, reverse=True)
-                    break
+            
+            if nn.vert.id in candidate_ids or nn.vert.id == vert.id:
+                continue
+            nn.distance = (getDistance(vert.coordinates, nn.vert.coordinates))
+            #heappush(vert.candidates, nn)
+            if nn.distance < vert.candidates[0].distance: 
+                #_heapreplace_max(vert.candidates, nn)
+                #candidate_ids.add(nn.vert.id)
+                #candidate_ids.remove(vert.candidates[0].vert.id)
+                _heapreplace_max(vert.candidates, nn)
+                
 
         #Here newly added neighbors are counted by taking the difference between the original neighbors and the new candidates
         new_ids = {c.vert.id for c in vert.candidates}
         new_neighbors = len(new_ids - original_ids)
         counter += new_neighbors
+        #print(vert.id)
+      
     # Unfrezze graph and set new neighbors
     for vert in NNG:
         NNG[vert] = vert.candidates
