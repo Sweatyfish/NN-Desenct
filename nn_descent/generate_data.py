@@ -6,7 +6,7 @@ import scipy.spatial.distance as sci
 from Benchmark import evaluate_accuracy
 
 bencmark_Result = True
-k = 3
+k = 5
 n = 100
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
@@ -37,16 +37,16 @@ class Neighbour:
 # NNG is a dictionary that maps each Vertecie to a list of its Neighbour objects
 NNG: Dict[Vertecie, List[Neighbour]] = {}
 
-#Returns a set of Neighbours neighbours
+#Returns a set of Neighbours neighbours excluding it self and nodes it already considers as neighbours
 def getNeighboursNeighbour(point: Vertecie):
-    listOfNeighbours = NNG[point]
-
+    direct_ids = {nb.vert.id for nb in NNG[point]}
     setOfNN = set()
-    for neighbour in listOfNeighbours:
+    for neighbour in NNG[point]:
         for nNeigbhour in NNG[neighbour.vert]:
-            if nNeigbhour.vert.id != point.id:
+            if nNeigbhour.vert.id != point.id and nNeigbhour.vert.id not in direct_ids:
                 setOfNN.add(nNeigbhour)
-    return (setOfNN)
+    return setOfNN
+
 # Gets k random points from the dataset, excluding the point itself, and returns their indices
 def getKRandomPoints(k, point_index, data_list):
     """Get n random neighbor indices excluding the point itself"""
