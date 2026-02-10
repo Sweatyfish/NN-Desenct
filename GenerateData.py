@@ -4,15 +4,17 @@ from typing import Dict, List
 import random
 import scipy.spatial.distance as sci
 from Benchmark import evaluate_accuracy
+import heapq
+import copy
 
 bencmark_Result = True
 k = 3
-n = 100
+n = 1000
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
-Delta = 0.02
+Delta = 0.001
 #The maximum number of iterations allowed
-Iterationcelling = 50
+Iterationcelling = 200
 
 
 
@@ -34,6 +36,9 @@ class Neighbour:
     
     def __eq__(self, other):
         return self.vert.id == other.vert.id
+    
+    def __lt__(self, other):
+        return self.distance < other.distance
 # NNG is a dictionary that maps each Vertecie to a list of its Neighbour objects
 NNG: Dict[Vertecie, List[Neighbour]] = {}
 
@@ -101,40 +106,59 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     plt.ylabel('Feature 2')
     plt.title('Generated Clusters')
     plt.colorbar(label='Cluster')
-    plt.show()
-# Iterates over the NNG and updates the candidates for each point based on the distances to its neighbours and their neighbours.    #plt.savefig("output.png")
-
+    #plt.show()
+    plt.savefig("output1.png")
+# Iterates over the NNG and updates the candidates for each point based on the distances to its neighbours and their neighbours.    
 
 def iterate(NNG):
     counter = 0
+
     for vert in NNG:
         setOfNN = getNeighboursNeighbour(vert)
+
+        heap = []
+ 
+
+        for nb in NNG[vert]:
+            nb_copy = copy.copy(nb)   # shallow copy is enough
+            d = nb_copy.distance       # keeps existing distance
+            key = d[0] if hasattr(d, '__iter__') else d
+            heapq.heappush(heap, (-key, nb_copy))
+
+
+        candidate_ids = {nb.vert.id for _, nb in heap}
         
-        vert.candidates = sorted(NNG[vert],
-                                key=lambda nb: nb.distance[0] if hasattr(nb.distance, '__iter__') else nb.distance, reverse=True)
-
-        #Save the original neighbors to get a count of newly added neighbors
-        original_ids = {c.vert.id for c in vert.candidates}        
-        # For every neighbours neighbours
+        # Process neighbors-of-neighbors
         for nn in setOfNN:
-            # For every candidate
-            for i in range (len(vert.candidates)):
-                nn.distance = getDistance(vert.coordinates, nn.vert.coordinates)
-                if nn.distance < vert.candidates[i].distance and nn.vert.id not in [c.vert.id for c in vert.candidates]: 
-                    # print(nn.vert.id, nn.distance)
-                    # print(vert.candidates[i].vert.id, vert.candidates[i].distance)
-                    # print("---")
-                    vert.candidates[i] = nn
-                    vert.candidates.sort(key=lambda nb: nb.distance[0] if hasattr(nb.distance, '__iter__') else nb.distance, reverse=True)
-                    break
+            if nn.vert.id in candidate_ids:
+                continue  # skip duplicates
+            if nn.vert.id == vert.id:
+                continue  # Skip self
+            
+            nn_copy = copy.copy(nn)
+            d = getDistance(vert.coordinates, nn_copy.vert.coordinates)
+            nn_copy.distance = d
+            key = d[0] if hasattr(d, '__iter__') else d
 
-        #Here newly added neighbors are counted by taking the difference between the original neighbors and the new candidates
-        new_ids = {c.vert.id for c in vert.candidates}
-        new_neighbors = len(new_ids - original_ids)
-        counter += new_neighbors
-    # Unfrezze graph and set new neighbors
+            worst_key, worst_nb = heap[0]
+            if key < -worst_key:
+                candidate_ids.remove(worst_nb.vert.id)
+                candidate_ids.add(nn.vert.id)
+                heapq.heapreplace(heap, (-key, nn_copy))
+                counter += 1
+
+
+
+        # Store back candidates (order not guaranteed)
+        vert.candidates = [nb for _, nb in heap]
+        #if vert.id == 10:
+         #   for nb in vert.candidates:
+          #      print("Candidate for vert 10: ", nb.vert.id, " with distance: ", nb.distance)
+            
+    # Update graph
     for vert in NNG:
         NNG[vert] = vert.candidates
+
     return NNG, counter
 # Main function that generates the NNG, iterates over it for a number of iterations, and then draws the final NNG.
 def main():
