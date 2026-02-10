@@ -37,14 +37,15 @@ class Neighbour:
 # NNG is a dictionary that maps each Vertecie to a list of its Neighbour objects
 NNG: Dict[Vertecie, List[Neighbour]] = {}
 
-def getNeighboursNeighbour(point: Vertecie): 
-    listOfNeighbours = NNG[point] 
-    setOfNN = set() 
-    
-    for neighbour in listOfNeighbours: 
-        for nNeigbhour in NNG[neighbour.vert]: 
-            if nNeigbhour.vert.id != point.id: setOfNN.add(nNeigbhour)
-    return (setOfNN)
+#Returns a set of Neighbours neighbours
+def getNeighboursNeighbour(point: Vertecie):
+    listOfNeighbours = NNG[point]
+
+    setOfNN = set()
+    for neighbour in listOfNeighbours:
+        for nNeigbhour in NNG[neighbour.vert]:
+            if nNeigbhour.vert.id != point.id:
+                setOfNN.add(nNeigbhour)
 
 # Gets k random points from the dataset, excluding the point itself, and returns their indices
 def getKRandomPoints(k, point_index, data_list):
