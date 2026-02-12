@@ -3,12 +3,13 @@ from sklearn.datasets import make_blobs
 from typing import Dict, List
 import random
 import scipy.spatial.distance as sci
-from .Benchmark import evaluate_accuracy
+from Benchmark import evaluate_accuracy
 import heapq
 
 bencmark_Result = True
 k = 5
-n = 100
+n = 200
+
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
 Delta = 0.02
@@ -54,7 +55,6 @@ def getNeighboursNeighbour(point: Vertecie):
         for nn in NNG[neighbour.vert]:
             if nn.vert.id != point.id and nn.vert.id not in direct_ids:
                 setOfNN.add(nn)
-
     return setOfNN
 
 # Gets k random points from the dataset, excluding the point itself, and returns their indices
@@ -95,6 +95,53 @@ def getNNG():
         NNG[vert] = neighbor_list
 
     return NNG, X, y
+
+def getReverseNNG(NNG):
+    R = {v: [] for v in NNG}
+
+    for u in NNG:
+        for neigh in NNG[u]:
+            v = neigh.vert
+            R[v].append(u)
+    return R
+
+def try_insert(heap, vert, dist):
+    ids = {n.vert.id for n in heap}
+    if vert.id in ids:
+        return 0
+
+    if len(heap) < k:
+        heap.append(Neighbour(vert, dist))
+        return 1
+
+    worst = max(heap, key=lambda x: x.distance)
+    if dist < worst.distance:
+        heap.remove(worst)
+        heap.append(Neighbour(vert, dist))
+        return 1
+
+    return 0
+
+
+def iterate(NNG):
+    R = getReverseNNG(NNG)
+    counter = 0
+    for vert in NNG:
+        general = set(NNG[vert]) | {Neighbour(u, 0) for u in R[vert]}
+        general = list(general)
+
+        for i in range(len(general)):
+            for j in range(i+1, len(general)):
+                p = general[i].vert
+                q = general[j].vert
+
+                dist = getDistance(p.coordinates, q.coordinates)
+                counter += try_insert(NNG[p], q, dist)
+                counter += try_insert(NNG[q], p, dist)
+
+    return NNG, counter
+
+
 # Draws the NNG by plotting lines between points and their neighbours, and coloring the points according to their cluster labels
 def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     # Plot all lines from points to neighbors
@@ -112,47 +159,9 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     plt.title('Generated Clusters')
     plt.colorbar(label='Cluster')
     plt.show()
-# Iterates over the NNG and updates the candidates for each point based on the distances to its neighbours and their neighbours.    #plt.savefig("output.png")
+# Iterates over the NNG and updates the candidates for each point based on the distances to its neighbours and their neighbours.    
+# #plt.savefig("output.png")
 
-
-def iterate(NNG):
-    counter = 0
-    for vert in NNG:
-        setOfNN = getNeighboursNeighbour(vert)
-        
-        # Initialize candidates from current neighbors
-        vert.candidates = list(NNG[vert])
-        # Heapify in-place (returns None, modifies vert.candidates)
-        heapq._heapify_max(vert.candidates)
-        
-        # Save the original neighbors to get a count of newly added neighbors
-        original_ids = {c.vert.id for c in vert.candidates}
-        candidate_ids = set(original_ids)
-        
-        # For every neighbours neighbours
-        for nn in setOfNN:
-            # Skip if already a candidate
-            if nn.vert.id in candidate_ids:
-                continue    
-
-            dist = getDistance(vert.coordinates, nn.vert.coordinates)
-            new_nn = Neighbour(nn.vert, dist)
-
-            if dist < vert.candidates[0].distance:
-                worst = vert.candidates[0]
-                _heapreplace_max(vert.candidates, new_nn)
-                candidate_ids.discard(worst.vert.id)
-                candidate_ids.add(new_nn.vert.id)
-
-
-        # Here newly added neighbors are counted by taking the difference between the original neighbors and the new candidates
-        new_ids = {c.vert.id for c in vert.candidates}
-        new_neighbors = len(new_ids - original_ids)
-        counter += new_neighbors
-    # Unfrezze graph and set new neighbors
-    for vert in NNG:
-        NNG[vert] = vert.candidates
-    return NNG, counter
 # Main function that generates the NNG, iterates over it for a number of iterations, and then draws the final NNG.
 def main():
     NNG, X, y = getNNG()
@@ -164,14 +173,14 @@ def main():
 
         if newNeighborsFound == 0 or newNeighborsFound < Delta * n * k or iterationcounter >= Iterationcelling:
             break
-        print("Iteration number: ",iterationcounter)
+        print("Iteration number: ",iterationcounter + 1)
         print("new neighbors found: ", newNeighborsFound)
         iterationcounter += 1
 
     if bencmark_Result:
         accuracy = evaluate_accuracy(NNG, k)
         print(f"Accuracy: {accuracy:.4f}")
-    draw(NNG, X, y)
+    # draw(NNG, X, y)
     
 
 main()
