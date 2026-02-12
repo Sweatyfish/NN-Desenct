@@ -7,8 +7,9 @@ from Benchmark import evaluate_accuracy
 import heapq
 
 bencmark_Result = True
-k = 5
-n = 200
+drawFlag = False
+k = 10
+n = 4000
 
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
@@ -35,6 +36,7 @@ class Neighbour:
     def __init__(self, vert : Vertecie, distance : float):
         self.vert = vert
         self.distance = distance
+        self.flag = True
 
     def __hash__(self):
         return hash(self.vert.id)
@@ -102,7 +104,7 @@ def getReverseNNG(NNG):
     for u in NNG:
         for neigh in NNG[u]:
             v = neigh.vert
-            R[v].append(u)
+            R[v].append(Neighbour(u,0.0))
     return R
 
 def try_insert(heap, vert, dist):
@@ -127,18 +129,24 @@ def iterate(NNG):
     R = getReverseNNG(NNG)
     counter = 0
     for vert in NNG:
-        general = set(NNG[vert]) | {Neighbour(u, 0) for u in R[vert]}
+        general = set(NNG[vert]) |set(R[vert])
         general = list(general)
+
+        # for v in general:
+        #     if not v.flag:
+        #         general.remove(v)
+        #     else:
+        #         v.flag = False
 
         for i in range(len(general)):
             for j in range(i+1, len(general)):
                 p = general[i].vert
                 q = general[j].vert
-
-                dist = getDistance(p.coordinates, q.coordinates)
-                counter += try_insert(NNG[p], q, dist)
-                counter += try_insert(NNG[q], p, dist)
-
+                if (general[i].flag or general[j].flag):
+                    dist = getDistance(p.coordinates, q.coordinates)
+                    counter += try_insert(NNG[p], q, dist)
+                    counter += try_insert(NNG[q], p, dist)
+            general[i].flag=False
     return NNG, counter
 
 
@@ -180,7 +188,8 @@ def main():
     if bencmark_Result:
         accuracy = evaluate_accuracy(NNG, k)
         print(f"Accuracy: {accuracy:.4f}")
-    # draw(NNG, X, y)
+    if drawFlag:
+        draw(NNG, X, y)
     
 
 main()
