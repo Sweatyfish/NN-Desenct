@@ -5,11 +5,12 @@ import random
 import scipy.spatial.distance as sci
 from Benchmark import evaluate_accuracy
 import heapq
+import time
 
-bencmark_Result = True
+bencmark_Result = False
 drawFlag = False
-k = 10
-n = 4000
+k = 4
+n = 2500
 
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
@@ -176,6 +177,7 @@ def main():
 
     newNeighborsFound = 0
     iterationcounter = 0
+    start = time.time()
     while True:
         NNG, newNeighborsFound = iterate(NNG)
 
@@ -184,6 +186,9 @@ def main():
         print("Iteration number: ",iterationcounter + 1)
         print("new neighbors found: ", newNeighborsFound)
         iterationcounter += 1
+    end = time.time()
+
+    print(end - start)
 
     if bencmark_Result:
         accuracy = evaluate_accuracy(NNG, k)
