@@ -3,12 +3,12 @@ from sklearn.datasets import make_blobs
 from typing import Dict, List
 import random
 import scipy.spatial.distance as sci
-from .Benchmark import evaluate_accuracy
+from Benchmark import evaluate_accuracy
 import heapq
 
-bencmark_Result = True
-k = 5
-n = 100
+bencmark_Result = False
+k = 4
+n = 25000
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
 Delta = 0.02
@@ -171,7 +171,7 @@ def main():
     if bencmark_Result:
         accuracy = evaluate_accuracy(NNG, k)
         print(f"Accuracy: {accuracy:.4f}")
-    draw(NNG, X, y)
+    # draw(NNG, X, y)
     
 
 main()
