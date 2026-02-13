@@ -10,12 +10,14 @@ import time
 bencmark_Result = True
 drawFlag = False
 dimensions = 2
-k = 5
-n = 500
+k = 10
+n = 2000
+#sample rate
+rho = 0.5
 
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
-Delta = 0.02
+Delta = 0.001
 #The maximum number of iterations allowed
 Iterationcelling = 50
 
@@ -131,6 +133,15 @@ def try_insert(u1_vert, u2_vert, dist):
 def getNeighbours(vert, NNG):
     return NNG[vert]
 
+def sample_ref(neigh_list):
+    sample_size = int(rho * len(neigh_list))
+    if sample_size == 0:
+        return []
+    return_list = random.sample(neigh_list, sample_size)
+    for neigh in return_list:
+        neigh.flag = False
+    return return_list
+    
 def iterate(NNG, RNNG):
     counter = 0
     for vert in NNG:
@@ -161,15 +172,15 @@ def iterate(NNG, RNNG):
                 old_rev.append(neigh)
             else:
                 new_rev.append(neigh)
-                neigh.flag = False
+                #neigh.flag = False
 
         ''' old[v] ←− old[v] ∪ Sample(old′ [v], ρK)
             new[v] ←− new[v] ∪ Sample(new′ [v], ρK)'''
         
         old_neighbors = set(old_neighbors)
-        old_neighbors.update(old_rev)
+        old_neighbors.update(sample_ref(old_rev))
         new_neighbors = set(new_neighbors)
-        new_neighbors.update(new_rev)
+        new_neighbors.update(sample_ref(new_rev))
         
         """ c ←− c + UpdateNN(B[u1], hu2, l, true)
             c ←− c + UpdateNN(B[u2], hu1, l, true)"""
