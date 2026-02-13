@@ -8,10 +8,10 @@ import heapq
 import time
 
 bencmark_Result = True
-drawFlag = True
+drawFlag = False
 dimensions = 2
 k = 5
-n = 1000
+n = 500
 
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
@@ -19,20 +19,18 @@ Delta = 0.02
 #The maximum number of iterations allowed
 Iterationcelling = 50
 
-def _heapreplace_max(heap, item):
-    """Maxheap version of a heappop followed by a heappush."""
-    returnitem = heap[0]    # raises appropriate IndexError if heap is empty
-    heap[0] = item
-    heapq._siftup_max(heap, 0)
-    return returnitem
-
 # Each point in space is represented as a Vertecie object, which has a list of its neighbours
 # (as Neighbour objects) and a list of candidates (also as Neighbour objects)
 class Vertecie:
     def __init__(self, coordinates: List[float], id):
         self.coordinates = coordinates
         self.id = id
-        self.candidates = []
+    
+    def __hash__(self):
+        return hash(self.id)
+
+    def __eq__(self, other):
+        return isinstance(other, Vertecie) and self.id == other.id
 # Neighbour objects are used to represent the neighbours of a point, and they store the neighbour's Vertecie object and the distance to that neighbour
 class Neighbour: 
     def __init__(self, vert : Vertecie, distance : float):
@@ -48,6 +46,7 @@ class Neighbour:
         return self.distance < other.distance
 # NNG is a dictionary that maps each Vertecie to a list of its Neighbour objects
 NNG: Dict[Vertecie, List[Neighbour]] = {}
+#RNNG: Dict[Vertecie, List[Neighbour]] = {}
 
 #Returns a set of Neighbours neighbours
 def getNeighboursNeighbour(point: Vertecie):
@@ -107,21 +106,24 @@ def getReverseNNG(NNG):
         for neigh in NNG[u]:
             v = neigh.vert
             R[v].append(Neighbour(u,0.0))
+    print(type(R))
     return R
 
-def try_insert(heap, vert, dist):
-    ids = {n.vert.id for n in heap}
-    if vert.id in ids:
+def try_insert(u1_vert, u2_vert, dist):
+    u1_heap = NNG[u1_vert]
+    ids = {n.vert.id for n in u1_heap}
+    if u2_vert.id in ids:
         return 0
-
-    if len(heap) < k:
-        heap.append(Neighbour(vert, dist))
-        return 1
-
-    worst = max(heap, key=lambda x: x.distance)
-    if dist < worst.distance:
-        heap.remove(worst)
-        heap.append(Neighbour(vert, dist))
+    
+    
+    u3_worst = max(u1_heap, key=lambda x: x.distance)
+    if dist < u3_worst.distance:
+        
+        u1_heap.remove(u3_worst)
+        u1_heap.append(Neighbour(u2_vert, dist))
+        
+        RNNG[u2_vert].append(Neighbour(u1_vert,0.0))
+        RNNG[u3_worst.vert].remove(next((n for n in RNNG[u3_worst.vert] if n.vert.id == u1_vert.id), None))
         return 1
 
     return 0
@@ -129,8 +131,7 @@ def try_insert(heap, vert, dist):
 def getNeighbours(vert, NNG):
     return NNG[vert]
 
-def iterate(NNG):
-    R = getReverseNNG(NNG)
+def iterate(NNG, RNNG):
     counter = 0
     for vert in NNG:
         Neighbour = getNeighbours(vert, NNG)
@@ -150,7 +151,7 @@ def iterate(NNG):
                 neigh.flag = False
                 
         
-        Neighbour_rev = getNeighbours(vert, R)
+        Neighbour_rev = getNeighbours(vert, RNNG)
         old_rev = []
         new_rev = []
         
@@ -176,13 +177,13 @@ def iterate(NNG):
             for j in new_neighbors:
                 if i.vert.id < j.vert.id:
                     dist = getDistance(i.vert.coordinates, j.vert.coordinates)
-                    counter += try_insert(NNG[i.vert], j.vert, dist)
-                    counter += try_insert(NNG[j.vert], i.vert, dist)
+                    counter += try_insert(i.vert, j.vert, dist)
+                    counter += try_insert(j.vert, i.vert, dist)
             for j in old_neighbors:
                     if i.vert.id < j.vert.id:
                         dist = getDistance(i.vert.coordinates, j.vert.coordinates)
-                        counter += try_insert(NNG[i.vert], j.vert, dist)
-                        counter += try_insert(NNG[j.vert], i.vert, dist)
+                        counter += try_insert(i.vert, j.vert, dist)
+                        counter += try_insert(j.vert, i.vert, dist)
 
         # for i in range(len(general)):
         #     for j in range(i+1, len(general)):
@@ -223,12 +224,13 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
 # Main function that generates the NNG, iterates over it for a number of iterations, and then draws the final NNG.
 def main():
     NNG, X, y = getNNG()
-
+    global RNNG 
+    RNNG = getReverseNNG(NNG)
     newNeighborsFound = 0
     iterationcounter = 0
     start = time.time()
     while True:
-        NNG, newNeighborsFound = iterate(NNG)
+        NNG, newNeighborsFound = iterate(NNG,RNNG)
 
         if newNeighborsFound == 0 or newNeighborsFound < Delta * n * k or iterationcounter >= Iterationcelling:
             break
