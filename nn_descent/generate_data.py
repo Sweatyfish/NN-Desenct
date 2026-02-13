@@ -8,13 +8,14 @@ import heapq
 import time
 
 bencmark_Result = True
-drawFlag = False
-k = 6
+drawFlag = True
+dimensions = 2
+k = 5
 n = 1000
 
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
-Delta = 0.001
+Delta = 0.02
 #The maximum number of iterations allowed
 Iterationcelling = 50
 
@@ -74,7 +75,7 @@ def getDistance (point1, point2):
 
 # Generates the NNG by creating a dataset using make_blobs, initializing the Vertecie objects and their neighbours, and storing them in the NNG dictionary
 def getNNG():
-    X, y = make_blobs(n_samples=n, centers=3, n_features=2,
+    X, y = make_blobs(n_samples=n, centers=3, n_features=dimensions,
                     random_state=0)
     vert_list = []
 
@@ -136,37 +137,41 @@ def iterate(NNG):
         old_neighbors = []
         new_neighbors = []
         
-        ''' old[v] ←− all items in B[v] with a false flag
-            new[v] ←− ρK items in B[v] with a true flag
-            Mark sampled items in B[v] as false;'''
+
+        '''Mark sampled items in B[v] as false;'''
             
         for neigh in Neighbour:
-            if neigh.flag:
+            """old[v] ←− all items in B[v] with a false flag"""
+            if not neigh.flag:
+                old_neighbors.append(neigh)
+            else:
+                """new[v] ←− ρK items in B[v] with a true flag"""
                 new_neighbors.append(neigh)
                 neigh.flag = False
-            else:
-                old_neighbors.append(neigh)
                 
-        '''old′ ← Reverse(old), new′ ← Reverse(new)'''
+        
         Neighbour_rev = getNeighbours(vert, R)
         old_rev = []
         new_rev = []
         
+        '''old′ ← Reverse(old), new′ ← Reverse(new)'''
         for neigh in Neighbour_rev:
-            if neigh.flag:
+            if not neigh.flag:
+                old_rev.append(neigh)
+            else:
                 new_rev.append(neigh)
                 neigh.flag = False
-            else:
-                old_rev.append(neigh)
+
         ''' old[v] ←− old[v] ∪ Sample(old′ [v], ρK)
             new[v] ←− new[v] ∪ Sample(new′ [v], ρK)'''
-            
+        
         old_neighbors = set(old_neighbors)
         old_neighbors.update(old_rev)
-
         new_neighbors = set(new_neighbors)
         new_neighbors.update(new_rev)
         
+        """ c ←− c + UpdateNN(B[u1], hu2, l, true)
+            c ←− c + UpdateNN(B[u2], hu1, l, true)"""
         for i in new_neighbors:
             for j in new_neighbors:
                 if i.vert.id < j.vert.id:
@@ -174,9 +179,10 @@ def iterate(NNG):
                     counter += try_insert(NNG[i.vert], j.vert, dist)
                     counter += try_insert(NNG[j.vert], i.vert, dist)
             for j in old_neighbors:
-                    dist = getDistance(i.vert.coordinates, j.vert.coordinates)
-                    counter += try_insert(NNG[i.vert], j.vert, dist)
-                    counter += try_insert(NNG[j.vert], i.vert, dist)
+                    if i.vert.id < j.vert.id:
+                        dist = getDistance(i.vert.coordinates, j.vert.coordinates)
+                        counter += try_insert(NNG[i.vert], j.vert, dist)
+                        counter += try_insert(NNG[j.vert], i.vert, dist)
 
         # for i in range(len(general)):
         #     for j in range(i+1, len(general)):
@@ -193,14 +199,18 @@ def iterate(NNG):
 # Draws the NNG by plotting lines between points and their neighbours, and coloring the points according to their cluster labels
 def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     # Plot all lines from points to neighbors
+    drawLinesValue = 100/n
+    if drawLinesValue > 1:
+        drawLinesValue = 1
+    drawCirclesValue = 10000/n
     for vert in NNG:
         for neighbor in NNG[vert]:
             nx, ny = neighbor.vert.coordinates
             #Draws lines
-            plt.plot([vert.coordinates[0], nx], [vert.coordinates[1], ny], 'r-', alpha=100/n)
+            plt.plot([vert.coordinates[0], nx], [vert.coordinates[1], ny], 'r-', alpha=drawLinesValue)
     
     #Draws points
-    plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', s=10000/n)
+    plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', s=drawCirclesValue)
 
     plt.xlabel('Feature 1')
     plt.ylabel('Feature 2')
