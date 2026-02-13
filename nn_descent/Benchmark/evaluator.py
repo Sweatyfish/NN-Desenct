@@ -14,10 +14,13 @@ def evaluate_accuracy(NNG, k):
     vertices = list(NNG.keys())
     correct = 0
     total = 0
-
-
+    length = len(vertices)/100
+    counter = 0
     #This head bruteforces the nearest neighbors for each vertex and compares them to the predicted neighbors in the NNG
     for vertex, neighbors in NNG.items():
+        counter += 1
+        if (counter%100 == 0):
+            print(counter/100,"/",length)
         heap = []
 
         for other in vertices:
