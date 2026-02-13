@@ -7,10 +7,10 @@ from Benchmark import evaluate_accuracy
 import heapq
 import time
 
-bencmark_Result = False
-drawFlag = False
+bencmark_Result = True
+drawFlag = True
 k = 4
-n = 2500
+n = 100
 
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
@@ -158,10 +158,10 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
         for neighbor in NNG[vert]:
             nx, ny = neighbor.vert.coordinates
             #Draws lines
-            plt.plot([vert.coordinates[0], nx], [vert.coordinates[1], ny], 'r-', alpha=0.1)
+            plt.plot([vert.coordinates[0], nx], [vert.coordinates[1], ny], 'r-', alpha=100/n)
     
     #Draws points
-    plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', s=10)
+    plt.scatter(X[:, 0], X[:, 1], c=y, cmap='viridis', s=10000/n)
 
     plt.xlabel('Feature 1')
     plt.ylabel('Feature 2')
@@ -188,6 +188,7 @@ def main():
         iterationcounter += 1
     end = time.time()
 
+    print("Time from start of first iteraion to end of last:")
     print(end - start)
 
     if bencmark_Result:
