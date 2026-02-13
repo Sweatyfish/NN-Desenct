@@ -75,7 +75,7 @@ def getDistance (point1, point2):
 
 # Generates the NNG by creating a dataset using make_blobs, initializing the Vertecie objects and their neighbours, and storing them in the NNG dictionary
 def getNNG():
-    X, y = make_blobs(n_samples=n, centers=3, n_features=dimensions,
+    X, y = make_blobs(n_samples=n, centers=5, n_features=dimensions,
                     random_state=0)
     vert_list = []
 
@@ -202,7 +202,7 @@ def draw(NNG : Dict[Vertecie, List[Neighbour]], X, y):
     drawLinesValue = 100/n
     if drawLinesValue > 1:
         drawLinesValue = 1
-    drawCirclesValue = 10000/n
+    drawCirclesValue = 20000/n
     for vert in NNG:
         for neighbor in NNG[vert]:
             nx, ny = neighbor.vert.coordinates
