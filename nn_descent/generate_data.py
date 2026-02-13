@@ -161,8 +161,11 @@ def iterate(NNG):
         ''' old[v] ←− old[v] ∪ Sample(old′ [v], ρK)
             new[v] ←− new[v] ∪ Sample(new′ [v], ρK)'''
             
-        old_neighbors = set(old_neighbors + old_rev)
-        new_neighbors = set(new_neighbors + new_rev)
+        old_neighbors = set(old_neighbors)
+        old_neighbors.update(old_rev)
+
+        new_neighbors = set(new_neighbors)
+        new_neighbors.update(new_rev)
         
         for i in new_neighbors:
             for j in new_neighbors:
