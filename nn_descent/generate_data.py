@@ -8,13 +8,13 @@ import heapq
 import time
 
 bencmark_Result = True
-drawFlag = True
-k = 4
-n = 100
+drawFlag = False
+k = 6
+n = 1000
 
 #Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
 #Paper delta is 0.001
-Delta = 0.02
+Delta = 0.001
 #The maximum number of iterations allowed
 Iterationcelling = 50
 
@@ -124,30 +124,66 @@ def try_insert(heap, vert, dist):
         return 1
 
     return 0
-
+#Takes dictionary of Vertecie to list of Neighbour and a Vertecie and returns the list of Neighbour for that Vertecie
+def getNeighbours(vert, NNG):
+    return NNG[vert]
 
 def iterate(NNG):
     R = getReverseNNG(NNG)
     counter = 0
     for vert in NNG:
-        general = set(NNG[vert]) |set(R[vert])
-        general = list(general)
+        Neighbour = getNeighbours(vert, NNG)
+        old_neighbors = []
+        new_neighbors = []
+        
+        ''' old[v] ←− all items in B[v] with a false flag
+            new[v] ←− ρK items in B[v] with a true flag
+            Mark sampled items in B[v] as false;'''
+            
+        for neigh in Neighbour:
+            if neigh.flag:
+                new_neighbors.append(neigh)
+                neigh.flag = False
+            else:
+                old_neighbors.append(neigh)
+                
+        '''old′ ← Reverse(old), new′ ← Reverse(new)'''
+        Neighbour_rev = getNeighbours(vert, R)
+        old_rev = []
+        new_rev = []
+        
+        for neigh in Neighbour_rev:
+            if neigh.flag:
+                new_rev.append(neigh)
+                neigh.flag = False
+            else:
+                old_rev.append(neigh)
+        ''' old[v] ←− old[v] ∪ Sample(old′ [v], ρK)
+            new[v] ←− new[v] ∪ Sample(new′ [v], ρK)'''
+            
+        old_neighbors = set(old_neighbors + old_rev)
+        new_neighbors = set(new_neighbors + new_rev)
+        
+        for i in new_neighbors:
+            for j in new_neighbors:
+                if i.vert.id < j.vert.id:
+                    dist = getDistance(i.vert.coordinates, j.vert.coordinates)
+                    counter += try_insert(NNG[i.vert], j.vert, dist)
+                    counter += try_insert(NNG[j.vert], i.vert, dist)
+            for j in old_neighbors:
+                    dist = getDistance(i.vert.coordinates, j.vert.coordinates)
+                    counter += try_insert(NNG[i.vert], j.vert, dist)
+                    counter += try_insert(NNG[j.vert], i.vert, dist)
 
-        # for v in general:
-        #     if not v.flag:
-        #         general.remove(v)
-        #     else:
-        #         v.flag = False
-
-        for i in range(len(general)):
-            for j in range(i+1, len(general)):
-                p = general[i].vert
-                q = general[j].vert
-                if (general[i].flag or general[j].flag):
-                    dist = getDistance(p.coordinates, q.coordinates)
-                    counter += try_insert(NNG[p], q, dist)
-                    counter += try_insert(NNG[q], p, dist)
-            general[i].flag=False
+        # for i in range(len(general)):
+        #     for j in range(i+1, len(general)):
+        #         p = general[i].vert
+        #         q = general[j].vert
+        #         if (general[i].flag or general[j].flag):
+        #             dist = getDistance(p.coordinates, q.coordinates)
+        #             counter += try_insert(NNG[p], q, dist)
+        #             counter += try_insert(NNG[q], p, dist)
+        #     general[i].flag=False
     return NNG, counter
 
 
