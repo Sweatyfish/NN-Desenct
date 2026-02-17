@@ -11,8 +11,9 @@ import numpy as np
 
 bencmark_Result = True
 usePCA = True
-k = 15
-n = 2000
+PCAdimensions = 32
+k = 10
+n = 1000
 #sample rate
 rho = 0.5
 
@@ -39,7 +40,7 @@ def getDistance (point1, point2):
 # Generates the NNG by creating a dataset using make_blobs, initializing the Vertecie objects and their neighbours, and storing them in the NNG dictionary
 def getNNG():
     data = getData(n)
-    pca = PCA(n_components=64)  # reduces to 64 dimensions
+    pca = PCA(n_components=PCAdimensions) 
 
     # Fit and transform your data
     data_reduced = pca.fit_transform(data)
@@ -167,7 +168,7 @@ def iterate(NNG, RNNG):
 
 # Main function that generates the NNG, iterates over it for a number of iterations, and then draws the final NNG.
 def main():
-    data = getData(n)
+    original_data = getData(n)
     
     NNG = getNNG()
     global RNNG 
@@ -189,8 +190,8 @@ def main():
     print(end - start)
 
     if bencmark_Result:
-        accuracy = evaluate_accuracy(NNG, k)
-        print("n:", n, "k:", k, "Dimensions:",data.shape[1], "Rho:", rho, "Delta:", Delta, "Iterations:", iterationcounter, "PCA:", usePCA)
+        accuracy = evaluate_accuracy(NNG, k, original_data)
+        print("n:", n, "k:", k, "Dimensions:",original_data.shape[1], "Rho:", rho, "Delta:", Delta, "Iterations:", iterationcounter, "PCA:", usePCA)
         print(f"Accuracy: {accuracy:.4f}")
         print("time", end - start)
 

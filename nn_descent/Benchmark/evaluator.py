@@ -9,7 +9,7 @@ def getDistance (point1, point2):
 
 # Evaluates the accuracy of the found NNG based on brute-force the nearest neighbors and returns the accuracy
 # It takes the "current" NNG datatype and the value of k as input if NNG changes, structure the function breaks
-def evaluate_accuracy(NNG, k):
+def evaluate_accuracy(NNG, k, original_data):
     print("Evaluating accuracy...")
     vertices = list(NNG.keys())
     correct = 0
@@ -26,7 +26,7 @@ def evaluate_accuracy(NNG, k):
         for other in vertices:
             if other.id == vertex.id:
                 continue
-            dist = getDistance(vertex.coordinates, other.coordinates)
+            dist = getDistance(original_data[vertex.id], original_data[other.id])
 
             if len(heap) < k:
                 heapq.heappush(heap, (-dist, other.id))
