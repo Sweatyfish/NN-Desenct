@@ -1,0 +1,197 @@
+import random
+from typing import Dict, List
+import scipy.spatial.distance as sci
+from Benchmark import evaluate_accuracy
+import time
+from get_data import getData
+from neighbour import Neighbour
+from vertecie import Vertecie
+from sklearn.decomposition import PCA
+import numpy as np
+
+bencmark_Result = True
+usePCA = True
+k = 15
+n = 2000
+#sample rate
+rho = 0.5
+
+# NNG is a dictionary that maps each Vertecie to a list of its Neighbour objects
+NNG: Dict[Vertecie, List[Neighbour]] = {}
+
+#Much higher delta than the original paper, Might be dataset size migth be that we don't have reverse and or local join
+#Paper delta is 0.001
+Delta = 0.001
+#The maximum number of iterations allowed
+Iterationceiling = 50
+
+# Gets k random points from the dataset, excluding the point itself, and returns their indices
+def getKRandomPoints(k, point_index, data_list):
+    """Get n random neighbor indices excluding the point itself"""
+    other_indices = [i for i in range(len(data_list)) if i != point_index]
+    return random.sample(other_indices, k)
+# Gets the distance between two points using scipy's pdist function, which computes the pairwise distance 
+# between two points in a N dimension space
+def getDistance (point1, point2):
+    Dist = sci.pdist([point1, point2], 'euclidean')
+    return Dist
+
+# Generates the NNG by creating a dataset using make_blobs, initializing the Vertecie objects and their neighbours, and storing them in the NNG dictionary
+def getNNG():
+    data = getData(n)
+    pca = PCA(n_components=64)  # reduces to 64 dimensions
+
+    # Fit and transform your data
+    data_reduced = pca.fit_transform(data)
+
+    # You can also check how much variance is explained
+    print(f"Explained variance ratio: {pca.explained_variance_ratio_.sum():.4f}")
+
+    if usePCA:
+        data = data_reduced
+    vert_list = []
+
+    # Runs over all points
+    for i in range(len(data)):
+        # Adds points to vert_list
+        vert_list.append(Vertecie(data[i], i))
+
+    # Runs over all points in vert_list and assigns them neighbours
+    for vert in vert_list:
+        #Gets random neigbours
+        random_neighbors = getKRandomPoints(k, vert.id, vert_list)
+        neighbor_list = []
+
+        #Initializes neigbours (with hardcoded distance)
+        for index in random_neighbors:
+            neighbor_list.append(Neighbour(vert_list[index], getDistance(vert.coordinates, vert_list[index].coordinates)))
+        NNG[vert] = neighbor_list
+
+    return NNG
+
+def getReverseNNG(NNG):
+    R = {v: [] for v in NNG}
+
+    for u in NNG:
+        for neigh in NNG[u]:
+            v = neigh.vert
+            R[v].append(Neighbour(u,0.0))
+    return R
+
+def try_insert(u1_vert, u2_vert, dist):
+    u1_heap = NNG[u1_vert]
+    ids = {n.vert.id for n in u1_heap}
+    if u2_vert.id in ids:
+        return 0
+    
+    
+    u3_worst = max(u1_heap, key=lambda x: x.distance)
+    if dist < u3_worst.distance:
+        
+        u1_heap.remove(u3_worst)
+        u1_heap.append(Neighbour(u2_vert, dist))
+        
+        RNNG[u2_vert].append(Neighbour(u1_vert,0.0))
+        RNNG[u3_worst.vert].remove(next((n for n in RNNG[u3_worst.vert] if n.vert.id == u1_vert.id), None))
+        return 1
+
+    return 0
+#Takes dictionary of Vertecie to list of Neighbour and a Vertecie and returns the list of Neighbour for that Vertecie
+def getNeighbours(vert, NNG):
+    return NNG[vert]
+
+def sample_ref(neigh_list):
+    sample_size = int(rho * len(neigh_list))
+    if sample_size == 0:
+        return []
+    return_list = random.sample(neigh_list, sample_size)
+    for neigh in return_list:
+        neigh.flag = False
+    return return_list
+    
+def iterate(NNG, RNNG):
+    counter = 0
+    for vert in NNG:
+        Neighbour = getNeighbours(vert, NNG)
+        old_neighbors = []
+        new_neighbors = []
+        
+
+        '''Mark sampled items in B[v] as false;'''
+            
+        for neigh in Neighbour:
+            """old[v] ←− all items in B[v] with a false flag"""
+            if not neigh.flag:
+                old_neighbors.append(neigh)
+            else:
+                """new[v] ←− ρK items in B[v] with a true flag"""
+                new_neighbors.append(neigh)
+                neigh.flag = False
+                
+        
+        Neighbour_rev = getNeighbours(vert, RNNG)
+        old_rev = []
+        new_rev = []
+        
+        '''old′ ← Reverse(old), new′ ← Reverse(new)'''
+        for neigh in Neighbour_rev:
+            if not neigh.flag:
+                old_rev.append(neigh)
+            else:
+                new_rev.append(neigh)
+                #neigh.flag = False
+
+        ''' old[v] ←− old[v] ∪ Sample(old′ [v], ρK)
+            new[v] ←− new[v] ∪ Sample(new′ [v], ρK)'''
+        
+        old_neighbors = set(old_neighbors)
+        old_neighbors.update(sample_ref(old_rev))
+        new_neighbors = set(new_neighbors)
+        new_neighbors.update(sample_ref(new_rev))
+        
+        """ c ←− c + UpdateNN(B[u1], hu2, l, true)
+            c ←− c + UpdateNN(B[u2], hu1, l, true)"""
+        for i in new_neighbors:
+            for j in new_neighbors:
+                if i.vert.id < j.vert.id:
+                    dist = getDistance(i.vert.coordinates, j.vert.coordinates)
+                    counter += try_insert(i.vert, j.vert, dist)
+                    counter += try_insert(j.vert, i.vert, dist)
+            for j in old_neighbors:
+                    if i.vert.id < j.vert.id:
+                        dist = getDistance(i.vert.coordinates, j.vert.coordinates)
+                        counter += try_insert(i.vert, j.vert, dist)
+                        counter += try_insert(j.vert, i.vert, dist)
+    return NNG, counter
+
+
+# Main function that generates the NNG, iterates over it for a number of iterations, and then draws the final NNG.
+def main():
+    data = getData(n)
+    
+    NNG = getNNG()
+    global RNNG 
+    RNNG = getReverseNNG(NNG)
+    newNeighborsFound = 0
+    iterationcounter = 0
+    start = time.time()
+    while True:
+        NNG, newNeighborsFound = iterate(NNG,RNNG)
+
+        if newNeighborsFound == 0 or newNeighborsFound < Delta * n * k or iterationcounter >= Iterationceiling:
+            break
+        print("Iteration number: ",iterationcounter + 1)
+        print("new neighbors found: ", newNeighborsFound)
+        iterationcounter += 1
+    end = time.time()
+
+    print("Time from start of first iteraion to end of last:")
+    print(end - start)
+
+    if bencmark_Result:
+        accuracy = evaluate_accuracy(NNG, k)
+        print("n:", n, "k:", k, "Dimensions:",data.shape[1], "Rho:", rho, "Delta:", Delta, "Iterations:", iterationcounter, "PCA:", usePCA)
+        print(f"Accuracy: {accuracy:.4f}")
+        print("time", end - start)
+
+main()
