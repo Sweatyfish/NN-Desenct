@@ -1,6 +1,5 @@
 import random
 from typing import Dict, List
-import scipy.spatial.distance as sci
 from Benchmark import evaluate_accuracy
 import time
 from get_data import getData
@@ -9,11 +8,11 @@ from vertecie import Vertecie
 from sklearn.decomposition import PCA
 import numpy as np
 
-bencmark_Result = True
-usePCA = True
+bencmark_Result = False
+usePCA = False
 PCAdimensions = 32
-k = 10
-n = 1000
+k = 15
+n = 10000
 #sample rate
 rho = 0.5
 
@@ -29,13 +28,22 @@ Iterationceiling = 50
 # Gets k random points from the dataset, excluding the point itself, and returns their indices
 def getKRandomPoints(k, point_index, data_list):
     """Get n random neighbor indices excluding the point itself"""
-    other_indices = [i for i in range(len(data_list)) if i != point_index]
-    return random.sample(other_indices, k)
+    # Use numpy choice for faster sampling on large arrays
+    if k <= 0:
+        return []
+    n_items = len(data_list)
+    all_idx = np.arange(n_items)
+    other_idx = np.delete(all_idx, point_index)
+    # np.random.choice returns ndarray; convert to Python list of ints
+    return list(np.random.choice(other_idx, size=k, replace=False))
+
 # Gets the distance between two points using scipy's pdist function, which computes the pairwise distance 
 # between two points in a N dimension space
-def getDistance (point1, point2):
-    Dist = sci.pdist([point1, point2], 'euclidean')
-    return Dist
+def getDistance(point1, point2):
+    """Return Euclidean distance as a float (faster than pdist here)."""
+    a = np.asarray(point1)
+    b = np.asarray(point2)
+    return float(np.linalg.norm(a - b))
 
 # Generates the NNG by creating a dataset using make_blobs, initializing the Vertecie objects and their neighbours, and storing them in the NNG dictionary
 def getNNG():
@@ -85,7 +93,6 @@ def try_insert(u1_vert, u2_vert, dist):
     if u2_vert.id in ids:
         return 0
     
-    
     u3_worst = max(u1_heap, key=lambda x: x.distance)
     if dist < u3_worst.distance:
         
@@ -105,7 +112,10 @@ def sample_ref(neigh_list):
     sample_size = int(rho * len(neigh_list))
     if sample_size == 0:
         return []
-    return_list = random.sample(neigh_list, sample_size)
+    # Use numpy to pick sample indices for speed, then return the objects
+    indices = np.arange(len(neigh_list))
+    chosen = np.random.choice(indices, size=sample_size, replace=False)
+    return_list = [neigh_list[i] for i in chosen]
     for neigh in return_list:
         neigh.flag = False
     return return_list
@@ -117,9 +127,7 @@ def iterate(NNG, RNNG):
         old_neighbors = []
         new_neighbors = []
         
-
         '''Mark sampled items in B[v] as false;'''
-            
         for neigh in Neighbour:
             """old[v] ←− all items in B[v] with a false flag"""
             if not neigh.flag:
