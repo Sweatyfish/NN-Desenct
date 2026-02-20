@@ -15,6 +15,7 @@ func getNandDFromFilename(filename string) (int, int) {
 	return N, D
 }
 
+/* Function to calculate the Euclidean distance between two vectors*/
 func euclideanDistance(vec1, vec2 []float64) float64 {
 
 	var total float64 = 0
@@ -25,6 +26,7 @@ func euclideanDistance(vec1, vec2 []float64) float64 {
 	return math.Sqrt(total)
 }
 
+/* Helper function to check if a slice contains a specific number*/
 func contains(slice []int, num int) bool {
 	for _, v := range slice {
 		if v == num {
@@ -34,6 +36,7 @@ func contains(slice []int, num int) bool {
 	return false
 }
 
+/* Helper function to get K unique random numbers from 0 to N-1, excluding Alpha*/
 func getKRandomNumbers(N, K, Alpha int) []int {
 	randomNumbers := make([]int, K)
 	for len(randomNumbers) < K {
