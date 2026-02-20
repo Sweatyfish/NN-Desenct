@@ -8,11 +8,11 @@ from vertecie import Vertecie
 from sklearn.decomposition import PCA
 import numpy as np
 
-bencmark_Result = False
+bencmark_Result = True
 usePCA = False
 PCAdimensions = 32
-k = 15
-n = 10000
+k = 10
+n = 4000
 #sample rate
 rho = 0.5
 
@@ -138,25 +138,27 @@ def iterate(NNG, RNNG):
                 neigh.flag = False
                 
         
-        Neighbour_rev = getNeighbours(vert, RNNG)
-        old_rev = []
-        new_rev = []
-        
         '''old′ ← Reverse(old), new′ ← Reverse(new)'''
-        for neigh in Neighbour_rev:
-            if not neigh.flag:
-                old_rev.append(neigh)
-            else:
-                new_rev.append(neigh)
-                #neigh.flag = False
+        # Collect reverse neighbours by looking up RNNG for each vertex in old/new
+        oldPrime = []
+        newPrime = []
+        try:
+            for neigh in old_neighbors:
+                oldPrime.extend(RNNG.get(neigh.vert, []))
+            for neigh in new_neighbors:
+                newPrime.extend(RNNG.get(neigh.vert, []))
+        except NameError:
+            # If RNNG is not in scope, fall back to empty reverse lists
+            oldPrime = []
+            newPrime = []
 
         ''' old[v] ←− old[v] ∪ Sample(old′ [v], ρK)
             new[v] ←− new[v] ∪ Sample(new′ [v], ρK)'''
         
         old_neighbors = set(old_neighbors)
-        old_neighbors.update(sample_ref(old_rev))
+        old_neighbors.update(sample_ref(oldPrime))
         new_neighbors = set(new_neighbors)
-        new_neighbors.update(sample_ref(new_rev))
+        new_neighbors.update(sample_ref(newPrime))
         
         """ c ←− c + UpdateNN(B[u1], hu2, l, true)
             c ←− c + UpdateNN(B[u2], hu1, l, true)"""

@@ -1,11 +1,8 @@
-import scipy.spatial.distance as sci
-import heapq
+import numpy as np
 
-# Returns the distance between two coordinates using scipy's pdist function
-def getDistance (point1, point2):
-    Dist = sci.pdist([point1, point2], 'euclidean')
-    # print (Dist)
-    return Dist
+# Returns the distance between two coordinates using NumPy (vectorized)
+def getDistance(point1, point2):
+    return float(np.linalg.norm(np.asarray(point1) - np.asarray(point2)))
 
 # Evaluates the accuracy of the found NNG based on brute-force the nearest neighbors and returns the accuracy
 # It takes the "current" NNG datatype and the value of k as input if NNG changes, structure the function breaks
@@ -14,34 +11,31 @@ def evaluate_accuracy(NNG, k, original_data):
     vertices = list(NNG.keys())
     correct = 0
     total = 0
-    length = len(vertices)/100
+    length = len(vertices) / 100
     counter = 0
-    #This head bruteforces the nearest neighbors for each vertex and compares them to the predicted neighbors in the NNG
+
+    # For each vertex, compute distances to all points vectorized and pick top-k
     for vertex, neighbors in NNG.items():
         counter += 1
-        if (counter%100 == 0):
-            print(counter/100,"/",length)
-        heap = []
+        if (counter % 100 == 0):
+            print(counter / 100, "/", length)
 
-        for other in vertices:
-            if other.id == vertex.id:
-                continue
-            dist = getDistance(original_data[vertex.id], original_data[other.id])
+        # Vectorized distances from this vertex to all data points
+        v = np.asarray(original_data[vertex.id])
+        all_dists = np.linalg.norm(np.asarray(original_data) - v, axis=1)
+        # exclude self
+        all_dists[vertex.id] = np.inf
 
-            if len(heap) < k:
-                heapq.heappush(heap, (-dist, other.id))
-            else:
-
-                if dist < -heap[0][0]:
-                    heapq.heappushpop(heap, (-dist, other.id))
-
-        true_nn_ids = {nid for _, nid in heap}
+        # get indices of k smallest distances
+        if k < len(all_dists):
+            idx = np.argpartition(all_dists, k)[:k]
+            true_nn_ids = set(int(i) for i in idx)
+        else:
+            true_nn_ids = set(i for i in range(len(all_dists)) if i != vertex.id)
 
         predicted_nn_ids = {nb.vert.id for nb in sorted(neighbors, key=lambda nb: nb.distance)[:k]}
 
-        #Take the intersection of the predicted and true nearest neighbors and count how many are correct
         correct += len(predicted_nn_ids & true_nn_ids)
-        #The total number of neighbors evaluated is the number of vertices times k
-        total += k 
+        total += k
 
     return correct / total if total > 0 else 0.0
