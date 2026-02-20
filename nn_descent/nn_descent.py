@@ -9,9 +9,9 @@ import time
 
 bencmark_Result = True
 drawFlag = False
-dimensions = 2
+dimensions = 20
 k = 10
-n = 2000
+n = 1000
 #sample rate
 rho = 0.5
 
