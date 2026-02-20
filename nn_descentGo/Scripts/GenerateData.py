@@ -1,9 +1,8 @@
 from sklearn.datasets import make_blobs
 import csv
 
-N = 1000
-D = 10
-
+N = 5000
+D = 160
 
 def main():
     data,_= make_blobs(n_samples=N, n_features=D, centers=10, random_state=42)
