@@ -8,7 +8,7 @@ import (
 
 func getNandDFromFilename(filename string) (int, int) {
 	var N, D int
-	_, err := fmt.Sscanf(filename, "data-N:%d-D:%d.csv", &N, &D)
+	_, err := fmt.Sscanf(filename, "data-N_%d-D_%d.csv", &N, &D)
 	if err != nil {
 		panic(err)
 	}

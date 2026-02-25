@@ -5,7 +5,7 @@ import (
 )
 
 /*Set Filname to the corresponding data set you want to load*/
-var filename string = "data-N:1000-D:10.csv"
+var filename string = "data-N_1000-D_10.csv"
 var filepath string = "Data/" + filename
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
