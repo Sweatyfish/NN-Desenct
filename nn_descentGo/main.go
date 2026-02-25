@@ -12,6 +12,7 @@ var filepath string = "Data/" + filename
 var K = 10
 
 /* amount of verticies each lock resides over */
+
 var lockSize = 128
 
 type Graph struct {
