@@ -2,6 +2,7 @@ package main
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 /*Set Filname to the corresponding data set you want to load*/
@@ -12,26 +13,28 @@ var filepath string = "Data/" + filename
 var K = 10
 
 /* amount of verticies each lock resides over */
-
-var lockSize = 128
+type revNeighborTuple struct {
+	Id  int
+	New bool
+}
 
 type Graph struct {
-	N, K, Dim          int
-	Data               []float64 /*Prolly needs changing*/
-	NeighborsID        []int
-	ReverseNeighborsID [][]int
-	Flags              []bool
-	Distances          []float64
-	Locks              []sync.Mutex
+	N, K, Dim        int
+	Data             []float64 /*Prolly needs changing*/
+	NeighborsID      []int
+	ReverseNeighbors []atomic.Pointer[[]revNeighborTuple]
+	Flags            []bool
+	Distances        []float64
 }
 
 var (
-	Graph_old Graph
-	Graph_new Graph
+	graph       Graph
+	counterLock sync.Mutex
+	counter     int
 )
 
 func main() {
 	N, D := getNandDFromFilename(filename)
-	Graph_old = initGraph(filepath, N, D, K, lockSize)
-	Graph_new = Graph_old
+	graph = initGraph(filepath, N, D, K)
+
 }

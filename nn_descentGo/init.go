@@ -3,13 +3,12 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
-	"math"
 	"os"
 	"strconv"
-	"sync"
+	"sync/atomic"
 )
 
-func initGraph(filepath string, N, D, K, lockSize int) Graph {
+func initGraph(filepath string, N, D, K int) Graph {
 	fmt.Println("Initializing Graph...")
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -25,15 +24,14 @@ func initGraph(filepath string, N, D, K, lockSize int) Graph {
 	}
 
 	Graph := Graph{
-		N:                  N,
-		K:                  K,
-		Dim:                D,
-		Data:               make([]float64, N*D),
-		NeighborsID:        make([]int, N*K),
-		ReverseNeighborsID: make([][]int, N),
-		Flags:              make([]bool, N*K),
-		Distances:          make([]float64, N*K),
-		Locks:              make([]sync.Mutex, int(math.Ceil(float64(N)/float64(lockSize)))),
+		N:                N,
+		K:                K,
+		Dim:              D,
+		Data:             make([]float64, N*D),
+		NeighborsID:      make([]int, N*K),
+		ReverseNeighbors: make([]atomic.Pointer[[]revNeighborTuple], N),
+		Flags:            make([]bool, N*K),
+		Distances:        make([]float64, N*K),
 	}
 	/* Insert Vector data into graph*/
 	for i, row := range records {
@@ -55,7 +53,13 @@ func initGraph(filepath string, N, D, K, lockSize int) Graph {
 		for J := 0; J < K; J++ {
 			Graph.NeighborsID[I*K+J] = IdList[J]
 			Graph.Distances[I*K+J] = euclideanDistance(Graph.Data[I*D:(I+1)*D], Graph.Data[IdList[J]*D:(IdList[J]+1)*D])
-			Graph.ReverseNeighborsID[IdList[J]] = append(Graph.ReverseNeighborsID[IdList[J]], I)
+			if Graph.ReverseNeighbors[IdList[J]].Load() == nil {
+				Graph.ReverseNeighbors[IdList[J]].Store(&[]revNeighborTuple{{Id: I, New: true}})
+			} else {
+				revPointer := Graph.ReverseNeighbors[IdList[J]].Load()
+				*revPointer = append(*revPointer, revNeighborTuple{Id: I, New: true})
+				Graph.ReverseNeighbors[IdList[J]].Store(revPointer)
+			}
 		}
 	}
 	fmt.Println("Graph Initialized")
