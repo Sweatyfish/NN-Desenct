@@ -1,0 +1,50 @@
+package main
+
+import (
+	"fmt"
+	"math"
+	"math/rand"
+)
+
+func getNandDFromFilename(filename string) (int, int) {
+	var N, D int
+	_, err := fmt.Sscanf(filename, "data-N_%d-D_%d.csv", &N, &D)
+	if err != nil {
+		panic(err)
+	}
+	return N, D
+}
+
+/* Function to calculate the Euclidean distance between two vectors*/
+func euclideanDistance(vec1, vec2 []float64) float64 {
+
+	var total float64 = 0
+	for i := range vec1 {
+		diff := vec1[i] - vec2[i]
+		total += diff * diff
+	}
+	return math.Sqrt(total)
+}
+
+/* Helper function to check if a slice contains a specific number*/
+func contains(slice []int, num int) bool {
+	for _, v := range slice {
+		if v == num {
+			return true
+		}
+	}
+	return false
+}
+
+/* Helper function to get K unique random numbers from 0 to N-1, excluding Alpha*/
+func getKRandomNumbers(N, K, Alpha int) []int {
+	randomNumbers := make([]int, 0, K)
+
+	for len(randomNumbers) < K {
+		num := rand.Intn(N)
+		if num != Alpha && !contains(randomNumbers, num) {
+			randomNumbers = append(randomNumbers, num)
+		}
+	}
+	return randomNumbers
+}
