@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
 )
 
@@ -24,15 +25,16 @@ func initGraph(filepath string, N, D, K int) Graph {
 	}
 
 	Graph := Graph{
-		N:                      N,
-		K:                      K,
-		Dim:                    D,
-		Data:                   make([]float64, N*D),
-		NeighborsID:            make([]NeighborTuple, N*K),
-		ReverseNeighbors:       make([]atomic.Pointer[[]NeighborTuple], N),
-		Distances:              make([]float64, N*K),
-		FreezeNeighbors:        make([]NeighborTuple, N*K),
-		FreezeReverseNeighbors: make([]atomic.Pointer[[]NeighborTuple], N),
+		N:                N,
+		K:                K,
+		Dim:              D,
+		Data:             make([]float64, N*D),
+		NeighborsID:      make([]NeighborTuple, N*K),
+		ReverseNeighbors: make([]atomic.Pointer[[]NeighborTuple], N),
+		Distances:        make([]float64, N*K),
+		Locks:            make([]sync.Mutex, N),
+		//FreezeNeighbors:        make([]NeighborTuple, N*K),
+		//FreezeReverseNeighbors: make([]atomic.Pointer[[]NeighborTuple], N),
 	}
 	/* Insert Vector data into graph*/
 	for i, row := range records {
@@ -59,8 +61,8 @@ func initGraph(filepath string, N, D, K int) Graph {
 			}
 		}
 	}
-	Graph.FreezeNeighbors = Graph.NeighborsID
-	Graph.FreezeReverseNeighbors = Graph.ReverseNeighbors
+	//Graph.FreezeNeighbors = Graph.NeighborsID
+	//Graph.FreezeReverseNeighbors = Graph.ReverseNeighbors
 	fmt.Println("Graph Initialized")
 
 	return Graph

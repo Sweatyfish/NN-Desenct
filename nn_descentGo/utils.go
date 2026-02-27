@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+
+	mapset "github.com/deckarep/golang-set/v2"
 )
 
 func getNandDFromFilename(filename string) (int, int) {
@@ -13,6 +15,9 @@ func getNandDFromFilename(filename string) (int, int) {
 		panic(err)
 	}
 	return N, D
+}
+func getvertex(V int, graph Graph) []float64 {
+	return graph.Data[V*graph.Dim : (V+1)*graph.Dim]
 }
 
 /* Function to calculate the Euclidean distance between two vectors*/
@@ -47,4 +52,29 @@ func getKRandomNumbers(N, K, Alpha int) []int {
 		}
 	}
 	return randomNumbers
+}
+func getneighbour(V int, graph Graph) []NeighborTuple {
+	list := graph.NeighborsID[V*graph.K : (V+1)*graph.K]
+	for i := V * graph.K; i < (V+1)*graph.K; i++ {
+		graph.NeighborsID[i].Isnew = false
+	}
+	return list
+}
+
+func getreverseneighbour(V int, graph Graph) []NeighborTuple {
+	return *graph.ReverseNeighbors[V].Load()
+}
+func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
+	SampledSet := mapset.NewSet[int]()
+	for neighbor := range Set.Iter() {
+		if rand.Float32() < rho {
+			SampledSet.Add(neighbor)
+		}
+	}
+	return SampledSet
+}
+
+func tryInsert(Vertex1, Vertex2 int, distance float64) {
+	/*Compare the distance with the distances of the current neighbors and update the neighbor list if necessary.*/
+
 }

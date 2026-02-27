@@ -4,6 +4,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	mapset "github.com/deckarep/golang-set/v2"
 )
 
 /*Set Filname to the corresponding data set you want to load*/
@@ -14,6 +16,7 @@ var filepath string = "Data/" + filename
 var K = 10
 var Delta = 0.001
 var numThreads = 4
+var rho float32 = 0.5
 
 /* amount of verticies each lock resides over */
 
@@ -28,21 +31,65 @@ type Graph struct {
 	NeighborsID            []NeighborTuple
 	ReverseNeighbors       []atomic.Pointer[[]NeighborTuple]
 	Distances              []float64
-	FreezeNeighbors        []NeighborTuple
 	FreezeReverseNeighbors []atomic.Pointer[[]NeighborTuple]
+	Locks                  []sync.Mutex
 }
 
 var (
-	graph             Graph
-	NewneigboursLock  sync.Mutex
-	Newneigboursfound int
-	Counterlock       sync.Mutex
-	Counter           int
+	graph              Graph
+	NewneighboursLock  sync.Mutex
+	Newneighboursfound int
+	Counterlock        sync.Mutex
+	Counter            int
 )
 
 func NNDecent(c chan int) {
-	/* Iterate over all verticies in the graph, and for each vertex, iterate over its neighbors and reverse neighbors to find potential new neighbors. If a new neighbor is found, add it to the graph and mark it as new. */
 
+	oldneighbours := mapset.NewSet[int]()
+	newneighbours := mapset.NewSet[int]()
+	oldprime := mapset.NewSet[int]()
+	newprime := mapset.NewSet[int]()
+	for true {
+		V := <-c
+		oldneighbours.Clear()
+		newneighbours.Clear()
+		oldprime.Clear()
+		newprime.Clear()
+
+		/*We go through all the neighbours and check whether they are new or old neighbours */
+		for _, neighbor := range getneighbour(V, graph) {
+			if neighbor.Isnew {
+				newneighbours.Add(neighbor.Id)
+			} else {
+				oldneighbours.Add(neighbor.Id)
+			}
+		}
+		/*Iterate over the reverse neighbors of V and add them to the corresponding sets based on whether they are new or old neighbors.*/
+		/*We take reverseneighbours and add them to two seperate lists*/
+		for Vertex := range newneighbours.Union(oldneighbours).Iter() {
+			for _, neighbor := range getreverseneighbour(Vertex, graph) {
+				if neighbor.Isnew {
+					newprime.Add(neighbor.Id)
+				} else {
+					oldprime.Add(neighbor.Id)
+				}
+
+			}
+			newneighbours = newneighbours.Union(sampleKRandomNeighbors(newprime, rho))
+			oldneighbours = oldneighbours.Union(sampleKRandomNeighbors(oldprime, rho))
+			newneighbourslist := newneighbours.ToSlice()
+			oldneighbourslist := oldneighbours.ToSlice()
+
+			for i := 0; i < len(newneighbourslist); i++ {
+				for j := i + 1; j < len(newneighbourslist); j++ {
+
+					distance = euclideanDistance(getvertex(newneighbourslist[i], graph), getvertex(newneighbourslist[j], graph))
+					tryInsert()
+				}
+			}
+
+		}
+	}
 }
 
 func main() {
@@ -58,9 +105,9 @@ func main() {
 	}
 
 	for float64(Newneigboursfound) > Delta*float64(K)*float64(N) {
-		NewneigboursLock.Lock()
+		NewneighboursLock.Lock()
 		Newneigboursfound = 0
-		NewneigboursLock.Unlock()
+		NewneighboursLock.Unlock()
 		for i := 0; i < N; i++ {
 			c <- i
 
