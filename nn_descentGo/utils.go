@@ -74,7 +74,82 @@ func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
 	return SampledSet
 }
 
-func tryInsert(Vertex1, Vertex2 int, distance float64) {
-	/*Compare the distance with the distances of the current neighbors and update the neighbor list if necessary.*/
+func tryInsert(graph Graph, Vertex1, Vertex2 int, distance float64) int {
+	//Check to find the current neighbor with the longest distance for both vertices
+	//Type of this variable is [neighborID, Distance, Placement in neighbor list]
+	LongestNeighborVertex1 := make([]float64, 3)
+	LongestNeighborVertex2 := make([]float64, 3)
+	inserted := 0
+	for i := Vertex1 * graph.K; i < (Vertex1+1)*graph.K; i++ {
+		if LongestNeighborVertex1[1] == 0.0 || graph.Distances[i] > LongestNeighborVertex1[1] {
+			LongestNeighborVertex1[0] = float64(graph.NeighborsID[i].Id)
+			LongestNeighborVertex1[1] = graph.Distances[i]
+			LongestNeighborVertex1[2] = float64(i)
+		}
+	}
+	for i := Vertex2 * graph.K; i < (Vertex2+1)*graph.K; i++ {
+		if LongestNeighborVertex2[1] == 0.0 || graph.Distances[i] > LongestNeighborVertex2[1] {
+			LongestNeighborVertex2[0] = float64(graph.NeighborsID[i].Id)
+			LongestNeighborVertex2[1] = graph.Distances[i]
+			LongestNeighborVertex2[2] = float64(i)
+		}
+	}
 
+	//If the new distance is smaller than the longest distance, we can insert the new neighbor
+	if distance < LongestNeighborVertex1[1] {
+		//Update the reverse neighbors of the removed neighbor and the new neighbor for vertex 1
+		removeReverseNeighbor(graph, Vertex1, int(LongestNeighborVertex1[0]))
+		InsertNewReverseNeighbor(graph, Vertex1, Vertex2)
+		//We need to lock the vertex before modifying its neighbors
+		graph.Locks[Vertex1].Lock()
+		//Insert the new neighbor
+		graph.NeighborsID[int(LongestNeighborVertex1[2])] = NeighborTuple{Isnew: true, Id: Vertex2}
+		//Insert the new distance
+		graph.Distances[int(LongestNeighborVertex1[2])] = distance
+		//Unlock the vertex after modification
+		graph.Locks[Vertex1].Unlock()
+		inserted++
+
+	}
+	//Same Process for the second vertex
+	if distance < LongestNeighborVertex2[1] {
+		removeReverseNeighbor(graph, Vertex2, int(LongestNeighborVertex2[0]))
+		InsertNewReverseNeighbor(graph, Vertex2, Vertex1)
+		graph.Locks[Vertex2].Lock()
+		graph.NeighborsID[int(LongestNeighborVertex2[2])] = NeighborTuple{Isnew: true, Id: Vertex1}
+		graph.Distances[int(LongestNeighborVertex2[2])] = distance
+		graph.Locks[Vertex2].Unlock()
+		inserted++
+
+	}
+	return inserted
+}
+
+// Removes vertex1 from the reverse neighbor list of vertex2
+func removeReverseNeighbor(graph Graph, Vertex1, Vertex2 int) {
+	//We need to lock the vertex before modifying its reverse neighbors
+	graph.Locks[Vertex2].Lock()
+	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
+	for i, neighbor := range *revPointer {
+		if neighbor.Id == Vertex1 {
+			//Remove the neighbor by swapping it with the last element and truncating the slice
+			(*revPointer)[i] = (*revPointer)[len(*revPointer)-1]
+			*revPointer = (*revPointer)[:len(*revPointer)-1]
+			break
+		}
+	}
+	graph.FreezeReverseNeighbors[Vertex2].Store(revPointer)
+	graph.Locks[Vertex2].Unlock()
+}
+
+// Inserts vertex1 into the reverse neighbor list of vertex2
+func InsertNewReverseNeighbor(graph Graph, Vertex1, Vertex2 int) {
+	//We need to lock the vertex before modifying its reverse neighbors
+	graph.Locks[Vertex2].Lock()
+	//Insert the new neighbor by appending it to the slice
+	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
+	*revPointer = append(*revPointer, NeighborTuple{Isnew: true, Id: Vertex1})
+	graph.FreezeReverseNeighbors[Vertex2].Store(revPointer)
+	//Unlock the vertex after modification
+	graph.Locks[Vertex2].Unlock()
 }
