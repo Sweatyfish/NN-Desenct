@@ -18,6 +18,7 @@ var K = 10
 var Delta = 0.001
 var numThreads = 2
 var rho float32 = 0.5
+var benchmarking = true
 
 /* amount of verticies each lock resides over */
 
