@@ -16,7 +16,7 @@ var filepath string = "Data/" + filename
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
 var K = 10
 var Delta = 0.001
-var numThreads = 4
+var numThreads = 2
 var rho float32 = 0.5
 
 /* amount of verticies each lock resides over */
@@ -120,24 +120,25 @@ func NNDecent(c chan int) {
 					addToNewNeighbors += tryInsert(graph, newneighbourslist[i], oldneighbourslist[j], distance)
 				}
 			}
-
-			//Adding a finished vertex to the counter lock
-			Counterlock.Lock()
-			Counter++
-			Counterlock.Unlock()
 			//Adding the amount of new neighbors found to the total amount of new neighbors found in this iteration
 			NewneighboursLock.Lock()
 			Newneighboursfound += addToNewNeighbors
 			NewneighboursLock.Unlock()
+
 		}
+		//Adding a finished vertex to the counter lock
+		Counterlock.Lock()
+		Counter++
+		Counterlock.Unlock()
+
 	}
 }
 
 func main() {
 	N, D := getNandDFromFilename(filename)
 	graph = initGraph(filepath, N, D, K)
-	Newneigboursfound := 0
-
+	//Instastiate to -1 for entering the first loop
+	Newneighboursfound = -1
 	c := make(chan int)
 	//Start the NNDescent algorithm with the specified amount of threads
 	for i := 0; i < numThreads; i++ {
@@ -149,10 +150,10 @@ func main() {
 	//This master threads will send vertex ids to the worker threads and check the stopping condition after each iteration, it will also update the reverse neighbors with the freeze reverse neighbors after each iteration
 	//Updating the reverse neighbors could be multithreaded as well, but would require deeper changes to the code, so I decided to keep it single threaded for now
 	//The way we currently keep track of which neighbors to switch should also be a heap currently is not optimal
-	for float64(Newneigboursfound) > Delta*float64(K)*float64(N) {
+	for float64(Newneighboursfound) > Delta*float64(K)*float64(N) || Newneighboursfound == -1 {
 		fmt.Println("Iteration number:", Iterations)
 		NewneighboursLock.Lock()
-		Newneigboursfound = 0
+		Newneighboursfound = 0
 		NewneighboursLock.Unlock()
 		for i := 0; i < N; i++ {
 			c <- i
@@ -176,7 +177,7 @@ func main() {
 		}
 
 		Iterations++
-		fmt.Println("New neighbors found in this iteration:", Newneigboursfound)
+		fmt.Println("New neighbors found in this iteration:", Newneighboursfound)
 	}
 
 }
