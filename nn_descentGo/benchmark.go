@@ -7,7 +7,7 @@ func benchmark(graph Graph) float64 {
 	totalPossible := graph.N * graph.K
 
 	for i := 0; i < graph.N; i++ {
-		foundNN := getneighbour(i, graph)
+		foundNN := getneighbour(i)
 		trueNN := getTrueNN(graph, i)
 
 		// convert trueNN to set for fast lookup
@@ -32,7 +32,7 @@ func getTrueNN(graph Graph, i int) []int {
 	distanceOfNN := make([]float64, 0)
 	for j := 0; j < graph.N; j++ {
 		if i != j {
-			distance := euclideanDistance(getvertex(i, graph), getvertex(j, graph))
+			distance := euclideanDistance(getvertex(i), getvertex(j))
 			LongestDistArr := getLongestDistance(distanceOfNN)
 			if len(trueNN) < graph.K {
 				trueNN = append(trueNN, j)

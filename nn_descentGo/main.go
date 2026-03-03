@@ -14,7 +14,7 @@ var filename string = "data-N_5000-D_80.csv"
 var filepath string = "Data/" + filename
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var K = 10
+var K = 15
 var Delta = 0.001
 var numThreads = 4
 var rho float32 = 0.5
@@ -58,6 +58,14 @@ func NNDecent(c chan int) {
 	for true {
 		// Wait for a id to be sent on the channel and then process it
 		V := <-c
+		if V == 2 {
+			println("Neighbours of V = 2")
+			for i := V * graph.K; i < (V+1)*graph.K; i++ {
+				fmt.Println("neighbour ", i, " ", graph.NeighborsID[i], graph.Distances[i])
+			}
+
+			fmt.Println("_______________________________________")
+		}
 		//Reset all the sets for a new iteration
 		oldneighbours.Clear()
 		newneighbours.Clear()
@@ -67,23 +75,26 @@ func NNDecent(c chan int) {
 		addToNewNeighbors := 0
 
 		/*We go through all the neighbours and check whether they are new or old neighbours */
-		for _, neighbor := range getneighbour(V, graph) {
-			if neighbor.Isnew {
-				newneighbours.Add(neighbor.Id)
-			} else {
-				oldneighbours.Add(neighbor.Id)
+		for _, neighbor := range getneighbour(V) {
+			if neighbor.Id != V {
+				if neighbor.Isnew {
+					newneighbours.Add(neighbor.Id)
+				} else {
+					oldneighbours.Add(neighbor.Id)
+				}
 			}
 		}
 		/*Iterate over the reverse neighbors of V and add them to the corresponding sets based on whether they are new or old neighbors.*/
 		/*We take reverseneighbours and add them to two seperate lists*/
 		for Vertex := range newneighbours.Union(oldneighbours).Iter() {
-			for _, neighbor := range getreverseneighbour(Vertex, graph) {
-				if neighbor.Isnew {
-					newprime.Add(neighbor.Id)
-				} else {
-					oldprime.Add(neighbor.Id)
+			for _, neighbor := range getreverseneighbour(Vertex) {
+				if neighbor.Id != V {
+					if neighbor.Isnew {
+						newprime.Add(neighbor.Id)
+					} else {
+						oldprime.Add(neighbor.Id)
+					}
 				}
-
 			}
 			//Union operations on the 4 sets with sampling, also making them into a slice
 			newneighbours = newneighbours.Union(sampleKRandomNeighbors(newprime, rho))
@@ -92,7 +103,7 @@ func NNDecent(c chan int) {
 			oldneighbourslist := oldneighbours.ToSlice()
 
 			//Set all current neighbors and reverse neighbors to old neighbors for the next iteration needs to be done before we begin changing neighbors
-			for _, neighbor := range getneighbour(Vertex, graph) {
+			for _, neighbor := range getneighbour(Vertex) {
 				neighbor.Isnew = false
 			}
 
@@ -111,14 +122,19 @@ func NNDecent(c chan int) {
 			graph.Locks[Vertex].Unlock()
 			//The main loop checking neighbors neighbors against each other
 			for i := 0; i < len(newneighbourslist); i++ {
-				for j := i + 1; j < len(newneighbourslist); j++ {
 
-					distance := euclideanDistance(getvertex(newneighbourslist[i], graph), getvertex(newneighbourslist[j], graph))
-					addToNewNeighbors += tryInsert(graph, newneighbourslist[i], newneighbourslist[j], distance)
+				if newneighbourslist[i] == V {
+					println("Found itself in the new neighbor list, this should not happen")
+				}
+
+				for j := i + 1; j < len(newneighbourslist); j++ {
+					distance := euclideanDistance(getvertex(newneighbourslist[i]), getvertex(newneighbourslist[j]))
+					//println("Distance between", newneighbourslist[i], "and", newneighbourslist[j], "is", distance)
+					addToNewNeighbors += tryInsert(newneighbourslist[i], newneighbourslist[j], distance)
 				}
 				for j := 0; j < len(oldneighbourslist); j++ {
-					distance := euclideanDistance(getvertex(newneighbourslist[i], graph), getvertex(oldneighbourslist[j], graph))
-					addToNewNeighbors += tryInsert(graph, newneighbourslist[i], oldneighbourslist[j], distance)
+					distance := euclideanDistance(getvertex(newneighbourslist[i]), getvertex(oldneighbourslist[j]))
+					addToNewNeighbors += tryInsert(newneighbourslist[i], oldneighbourslist[j], distance)
 				}
 			}
 			//Adding the amount of new neighbors found to the total amount of new neighbors found in this iteration
@@ -184,7 +200,7 @@ func main() {
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
 		accuracy := benchmark(graph)
-		fmt.Println("Calculated Accuracy is:", accuracy)
+		fmt.Println("Calculated Accuracy is:", accuracy, "%")
 	}
 
 }

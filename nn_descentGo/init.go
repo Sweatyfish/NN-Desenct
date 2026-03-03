@@ -49,6 +49,9 @@ func initGraph(filepath string, N, D, K int) Graph {
 	for I := 0; I < N; I++ {
 		IdList := getKRandomNumbers(N, K, I)
 		for J := 0; J < K; J++ {
+			if IdList[J] == I {
+				continue
+			}
 			Graph.NeighborsID[I*K+J] = NeighborTuple{Isnew: true, Id: IdList[J]}
 			Graph.Distances[I*K+J] = euclideanDistance(Graph.Data[I*D:(I+1)*D], Graph.Data[IdList[J]*D:(IdList[J]+1)*D])
 			if Graph.ReverseNeighbors[IdList[J]].Load() == nil {
