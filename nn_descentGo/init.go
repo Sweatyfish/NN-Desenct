@@ -24,7 +24,7 @@ func initGraph(filepath string, N, D, K int) Graph {
 		panic(err)
 	}
 
-	Graph := Graph{
+	graph := Graph{
 		N:                      N,
 		K:                      K,
 		Dim:                    D,
@@ -35,33 +35,56 @@ func initGraph(filepath string, N, D, K int) Graph {
 		Locks:                  make([]sync.Mutex, N),
 		FreezeReverseNeighbors: make([]atomic.Pointer[[]NeighborTuple], N),
 	}
-	/* Insert Vector data into graph*/
+
+	// Insert vector data into graph
 	for i, row := range records {
 		for j, value := range row {
-			Graph.Data[i*D+j], err = strconv.ParseFloat(value, 64)
+			graph.Data[i*D+j], err = strconv.ParseFloat(value, 64)
 			if err != nil {
 				panic(err)
 			}
 		}
 	}
 
-	/* Initialize neighbors, distances and reverse neighbors*/
+	// Initialize all atomic pointers to empty slices
+	for i := 0; i < N; i++ {
+		empty := make([]NeighborTuple, 0)
+		graph.ReverseNeighbors[i].Store(&empty)
+
+		emptyFreeze := make([]NeighborTuple, 0)
+		graph.FreezeReverseNeighbors[i].Store(&emptyFreeze)
+	}
+
+	// Initialize neighbors and distances
 	for I := 0; I < N; I++ {
 		IdList := getKRandomNumbers(N, K, I)
 		for J := 0; J < K; J++ {
-			Graph.NeighborsID[I*K+J] = NeighborTuple{Isnew: true, Id: IdList[J]}
-			Graph.Distances[I*K+J] = euclideanDistance(Graph.Data[I*D:(I+1)*D], Graph.Data[IdList[J]*D:(IdList[J]+1)*D])
-			if Graph.ReverseNeighbors[IdList[J]].Load() == nil {
-				Graph.ReverseNeighbors[IdList[J]].Store(&[]NeighborTuple{{Isnew: true, Id: I}})
-			} else {
-				revPointer := Graph.ReverseNeighbors[IdList[J]].Load()
-				*revPointer = append(*revPointer, NeighborTuple{Isnew: true, Id: I})
-				Graph.ReverseNeighbors[IdList[J]].Store(revPointer)
+			if IdList[J] == I {
+				continue
 			}
+
+			// Set neighbor
+			graph.NeighborsID[I*K+J] = NeighborTuple{Isnew: true, Id: IdList[J]}
+			graph.Distances[I*K+J] = euclideanDistance(
+				graph.Data[I*D:(I+1)*D],
+				graph.Data[IdList[J]*D:(IdList[J]+1)*D],
+			)
+
+			// Add reverse neighbor
+			revPointer := graph.ReverseNeighbors[IdList[J]].Load()
+			*revPointer = append(*revPointer, NeighborTuple{Isnew: true, Id: I})
+			graph.ReverseNeighbors[IdList[J]].Store(revPointer)
 		}
 	}
-	Graph.FreezeReverseNeighbors = Graph.ReverseNeighbors
-	fmt.Println("Graph Initialized")
 
-	return Graph
+	// Deep copy ReverseNeighbors into FreezeReverseNeighbors
+	for i := 0; i < N; i++ {
+		ptr := graph.ReverseNeighbors[i].Load()
+		copySlice := make([]NeighborTuple, len(*ptr))
+		copy(copySlice, *ptr)
+		graph.FreezeReverseNeighbors[i].Store(&copySlice)
+	}
+
+	fmt.Println("Graph Initialized")
+	return graph
 }
