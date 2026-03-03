@@ -1,24 +1,21 @@
 package main
 
 // this function is used to benchmark the accuracy based on the graph it recieves from main
-//this could also easily be multi-threaded but it would need structural changes in main "Rasmus" I might add this if necessary
+// this could also easily be multi-threaded but it would need structural changes in main "Rasmus" I might add this if necessary
 func benchmark(graph Graph) float64 {
 	totalCorrect := 0
 	totalPossible := graph.N * graph.K
 
 	for i := 0; i < graph.N; i++ {
-		foundNN := getneighbour(i)
-		trueNN := getTrueNN(graph, i)
+		foundNN := graph.NeighborsID[i*graph.K : (i+1)*graph.K]
+		trueNN := getTrueNN(i)
 
-		// convert trueNN to set for fast lookup
-		trueSet := make(map[int]bool)
-		for _, v := range trueNN {
-			trueSet[v] = true
-		}
-
-		for _, v := range foundNN {
-			if trueSet[v.Id] {
-				totalCorrect++
+		for _, neighbor := range foundNN {
+			for _, trueNeighbor := range trueNN {
+				if neighbor.Id == trueNeighbor {
+					totalCorrect++
+					break
+				}
 			}
 		}
 	}
@@ -27,35 +24,36 @@ func benchmark(graph Graph) float64 {
 	return accuracy
 }
 
-func getTrueNN(graph Graph, i int) []int {
-	trueNN := make([]int, 0)
-	distanceOfNN := make([]float64, 0)
-	for j := 0; j < graph.N; j++ {
-		if i != j {
-			distance := euclideanDistance(getvertex(i), getvertex(j))
-			LongestDistArr := getLongestDistance(distanceOfNN)
-			if len(trueNN) < graph.K {
-				trueNN = append(trueNN, j)
-				distanceOfNN = append(distanceOfNN, distance)
-			} else if distance < LongestDistArr[1] {
-				trueNN[int(LongestDistArr[0])] = j
-				distanceOfNN[int(LongestDistArr[0])] = distance
+func getTrueNN(vertex int) []int {
+	truenn := make([]int, 0)
+	distanceList := make([]float64, 0)
+	for i := 0; i < graph.N; i++ {
+		if i != vertex {
+			calculatedDistance := euclideanDistance(graph.Data[vertex*graph.Dim:(vertex+1)*graph.Dim], graph.Data[i*graph.Dim:(i+1)*graph.Dim])
+			if len(truenn) <= graph.K {
+				truenn = append(truenn, i)
+				distanceList = append(distanceList, calculatedDistance)
+				continue
+			}
+			max := findmax(distanceList)
+			if calculatedDistance < max[0] {
+				// replace the max distance with the new one
+				distanceList[int(max[1])] = calculatedDistance
+				truenn[int(max[1])] = i
 			}
 		}
 	}
-	return trueNN
+	return truenn
 }
 
-//For further optimization this could be a heap operation or dynamically maintained once found
-//This returns a slice [placement,distance] correlating to the current neighbor which is the furthest away
-func getLongestDistance(DistSlice []float64) []float64 {
-	longestdist := make([]float64, 2)
-	for i := 0; i < len(DistSlice); i++ {
-		if DistSlice[i] > longestdist[1] {
-			longestdist[1] = DistSlice[i]
-			longestdist[0] = float64(i)
-
+// returns in format [distance,Index]
+func findmax(slice []float64) []float64 {
+	max := []float64{0, 0} // [placement, distance]
+	for i, v := range slice {
+		if v > max[0] {
+			max[1] = float64(i)
+			max[0] = v
 		}
 	}
-	return longestdist
+	return max
 }

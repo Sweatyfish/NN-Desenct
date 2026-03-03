@@ -10,13 +10,13 @@ import (
 )
 
 /*Set Filname to the corresponding data set you want to load*/
-var filename string = "data-N_5000-D_80.csv"
+var filename string = "data-N_1000-D_80.csv"
 var filepath string = "Data/" + filename
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var K = 15
+var K = 10
 var Delta = 0.001
-var numThreads = 4
+var numThreads = 2
 var rho float32 = 0.5
 var benchmarking = true
 
@@ -58,14 +58,6 @@ func NNDecent(c chan int) {
 	for true {
 		// Wait for a id to be sent on the channel and then process it
 		V := <-c
-		if V == 2 {
-			println("Neighbours of V = 2")
-			for i := V * graph.K; i < (V+1)*graph.K; i++ {
-				fmt.Println("neighbour ", i, " ", graph.NeighborsID[i], graph.Distances[i])
-			}
-
-			fmt.Println("_______________________________________")
-		}
 		//Reset all the sets for a new iteration
 		oldneighbours.Clear()
 		newneighbours.Clear()
