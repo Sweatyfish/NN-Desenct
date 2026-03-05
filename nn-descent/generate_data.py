@@ -253,6 +253,7 @@ def main():
     print("Time from start of first iteraion to end of last:")
     print(end - start)
 
+    print(end - start)
     if bencmark_Result:
         accuracy = evaluate_accuracy(NNG, k)
         print(f"Accuracy: {accuracy:.4f}")
