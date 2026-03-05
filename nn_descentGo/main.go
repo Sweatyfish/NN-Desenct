@@ -9,14 +9,11 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 )
 
-/*Set Filname to the corresponding data set you want to load*/
-var filename string = "data-N_5000-D_80.csv"
-var filepath string = "Data/" + filename
-
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var K = 7
+var K = 10
+var N = 4000
 var Delta = 0.001
-var numThreads = 2
+var numThreads = 4
 var rho float32 = 0.5
 var benchmarking = true
 
@@ -144,8 +141,7 @@ func NNDecent(c chan int) {
 }
 
 func main() {
-	N, D := getNandDFromFilename(filename)
-	graph = initGraph(filepath, N, D, K)
+	graph = initGraph(N, 384, K)
 	//Instastiate to -1 for entering the first loop
 	Newneighboursfound = -1
 	c := make(chan int)
