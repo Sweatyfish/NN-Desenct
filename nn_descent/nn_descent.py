@@ -249,12 +249,9 @@ def main():
         print("new neighbors found: ", newNeighborsFound)
         iterationcounter += 1
     end = time.time()
-<<<<<<< HEAD:nn_descent/generate_data.py
-=======
 
     print("Time from start of first iteraion to end of last:")
     print(end - start)
->>>>>>> 75424c6ff590301ba33094611a7ffdd8609a4744:nn_descent/nn_descent.py
 
     print(end - start)
     if bencmark_Result:
