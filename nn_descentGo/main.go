@@ -10,11 +10,11 @@ import (
 )
 
 /*Set Filname to the corresponding data set you want to load*/
-var filename string = "data-N_1000-D_80.csv"
+var filename string = "data-N_5000-D_80.csv"
 var filepath string = "Data/" + filename
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var K = 10
+var K = 7
 var Delta = 0.001
 var numThreads = 2
 var rho float32 = 0.5
@@ -164,19 +164,24 @@ func main() {
 		NewneighboursLock.Lock()
 		Newneighboursfound = 0
 		NewneighboursLock.Unlock()
+		start := time.Now()
 		for i := 0; i < N; i++ {
 			c <- i
 
 		}
+
 		//Wait until all vertices have been processed before procedding
 		for Counter != N {
 			time.Sleep(50 * time.Millisecond)
 		}
+		end := time.Now()
+		fmt.Println("Time taken to process all vertices in this iteration:", end.Sub(start))
 		//Reset the counter for the next iteration
 		Counterlock.Lock()
 		Counter = 0
 		Counterlock.Unlock()
 		//We load all data from the freeze reverse neighbors into the reverse neighbor
+		start = time.Now()
 		for i := 0; i < N; i++ {
 			//We need to make a copy of the slice because otherwise we would be modifying the same slice for all vertices that share the same reverse neighbor
 			ListToCopy := *graph.FreezeReverseNeighbors[i].Load()
@@ -184,15 +189,17 @@ func main() {
 			copy(newSlice, ListToCopy)
 			graph.ReverseNeighbors[i].Store(&newSlice)
 		}
-
+		end = time.Now()
+		fmt.Println("Time taken to update reverse neighbors:", end.Sub(start))
 		Iterations++
 		fmt.Println("New neighbors found in this iteration:", Newneighboursfound)
 	}
-
+	start := time.Now()
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
 		accuracy := benchmark(graph)
 		fmt.Println("Calculated Accuracy is:", accuracy, "%")
 	}
-
+	end := time.Now()
+	fmt.Println("Time taken to benchmark:", end.Sub(start))
 }
