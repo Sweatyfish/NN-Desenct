@@ -48,20 +48,20 @@ func initGraph(N, D, K int) Graph {
 		Dim:                    D,
 		Data:                   make([]float32, N*D),
 		NeighborsID:            make([]NeighborTuple, N*K),
-		ReverseNeighbors:       make([]atomic.Pointer[[]NeighborTuple], N),
+		ReverseNeighbors:       make([]atomic.Pointer[[]int], N),
 		Distances:              make([]float32, N*K),
 		Locks:                  make([]sync.Mutex, N),
-		FreezeReverseNeighbors: make([]atomic.Pointer[[]NeighborTuple], N),
+		FreezeReverseNeighbors: make([]atomic.Pointer[[]int], N),
 	}
 	// Insert vector data into graph
 	copy(graph.Data, data)
 
 	// Initialize all atomic pointers to empty slices
 	for i := 0; i < N; i++ {
-		empty := make([]NeighborTuple, 0)
+		empty := make([]int, 0)
 		graph.ReverseNeighbors[i].Store(&empty)
 
-		emptyFreeze := make([]NeighborTuple, 0)
+		emptyFreeze := make([]int, 0)
 		graph.FreezeReverseNeighbors[i].Store(&emptyFreeze)
 	}
 
@@ -82,7 +82,7 @@ func initGraph(N, D, K int) Graph {
 
 			// Add reverse neighbor
 			revPointer := graph.ReverseNeighbors[IdList[J]].Load()
-			*revPointer = append(*revPointer, NeighborTuple{isNew: true, Id: I})
+			*revPointer = append(*revPointer, I)
 			graph.ReverseNeighbors[IdList[J]].Store(revPointer)
 		}
 	}
@@ -90,7 +90,7 @@ func initGraph(N, D, K int) Graph {
 	// Deep copy ReverseNeighbors into FreezeReverseNeighbors
 	for i := 0; i < N; i++ {
 		ptr := graph.ReverseNeighbors[i].Load()
-		copySlice := make([]NeighborTuple, len(*ptr))
+		copySlice := make([]int, len(*ptr))
 		copy(copySlice, *ptr)
 		graph.FreezeReverseNeighbors[i].Store(&copySlice)
 	}

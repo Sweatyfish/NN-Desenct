@@ -10,8 +10,8 @@ import (
 )
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var k = 15
-var n = 5000
+var k = 7
+var n = 10000
 var delta = 0.001
 var numThreads = 4
 var rho float32 = 0.5
@@ -29,9 +29,9 @@ type Graph struct {
 	N, K, Dim              int
 	Data                   []float32 /*Prolly needs changing*/
 	NeighborsID            []NeighborTuple
-	ReverseNeighbors       []atomic.Pointer[[]NeighborTuple]
+	ReverseNeighbors       []atomic.Pointer[[]int]
 	Distances              []float32
-	FreezeReverseNeighbors []atomic.Pointer[[]NeighborTuple]
+	FreezeReverseNeighbors []atomic.Pointer[[]int]
 	Locks                  []sync.Mutex
 }
 
@@ -78,21 +78,21 @@ func NNDecent(c chan int) {
 
 		/*Iterate over the reverse neighbors of V and add them to the corresponding sets based on whether they are new or old neighbors.*/
 		/*We take reverseneighbours and add them to two seperate lists*/
-		for _, Vertex := range graph.NeighborsID[V*graph.K : (V+1)*graph.K] {
-
-			for _, neighbor := range getReverseNeighbor(Vertex.Id) {
-
-				if neighbor.Id != V {
-					if neighbor.isNew {
-						newPrime.Add(neighbor.Id)
-						//if V == 134 {
-						//	counter++
-						//}
-					} else {
-						oldPrime.Add(neighbor.Id)
-					}
-				}
+		for neighbor := range newNeighbors.Iter() {
+			for _, reverseNeighbor := range getReverseNeighbor(neighbor) {
+				newPrime.Add(reverseNeighbor)
 			}
+		}
+		for neighbor := range oldNeighbors.Iter() {
+			for _, reverseNeighbor := range getReverseNeighbor(neighbor) {
+				oldPrime.Add(reverseNeighbor)
+			}
+		}
+		if V == 10 {
+			fmt.Println("newNeighborList:", len(newNeighbors.ToSlice()))
+			fmt.Println("oldNeighborList:", len(oldNeighbors.ToSlice()))
+			fmt.Println("newPrimeList:", len(newPrime.ToSlice()))
+			fmt.Println("oldPrimeList:", len(oldPrime.ToSlice()))
 		}
 
 		//Union operations on the 4 sets with sampling, also making them into a slice
@@ -111,10 +111,6 @@ func NNDecent(c chan int) {
 		//This (!IMPORTANT!) This is SUBOPTIMAL, but currently i dont now of a better way to do this, since no thread has the full picture of which are new or old reverse neighbors
 		//The main loop checking neighbors neighbors against each other
 		for i := 0; i < len(newNeighborsList); i++ {
-
-			if newNeighborsList[i] == V {
-				println("Found itself in the new neighbor list, this should not happen")
-			}
 
 			for j := i + 1; j < len(newNeighborsList); j++ {
 				distance := euclideanDistance(getVertex(newNeighborsList[i]), getVertex(newNeighborsList[j]))
@@ -186,7 +182,7 @@ func main() {
 		for i := 0; i < n; i++ {
 			//We need to make a copy of the slice because otherwise we would be modifying the same slice for all vertices that share the same reverse neighbor
 			ListToCopy := *graph.FreezeReverseNeighbors[i].Load()
-			newSlice := make([]NeighborTuple, len(ListToCopy))
+			newSlice := make([]int, len(ListToCopy))
 			copy(newSlice, ListToCopy)
 			graph.ReverseNeighbors[i].Store(&newSlice)
 		}

@@ -56,15 +56,12 @@ func getKRandomNumbers(N, K, Alpha int) []int {
 func getNeighbor(V int) []NeighborTuple {
 	graph.Locks[V].Lock()
 	list := graph.NeighborsID[V*graph.K : (V+1)*graph.K]
-	for i := V * graph.K; i < (V+1)*graph.K; i++ {
-		graph.NeighborsID[i].isNew = false
-	}
 	graph.Locks[V].Unlock()
 	return list
 
 }
 
-func getReverseNeighbor(V int) []NeighborTuple {
+func getReverseNeighbor(V int) []int {
 	return *graph.ReverseNeighbors[V].Load()
 }
 func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
@@ -148,7 +145,7 @@ func removeReverseNeighbor(Vertex1, Vertex2 int) {
 	graph.Locks[Vertex2].Lock()
 	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
 	for i, neighbor := range *revPointer {
-		if neighbor.Id == Vertex1 {
+		if neighbor == Vertex1 {
 			//Remove the neighbor by swapping it with the last element and truncating the slice
 			(*revPointer)[i] = (*revPointer)[len(*revPointer)-1]
 			*revPointer = (*revPointer)[:len(*revPointer)-1]
@@ -166,7 +163,7 @@ func InsertNewReverseNeighbor(Vertex1, Vertex2 int) {
 	graph.Locks[Vertex2].Lock()
 	//Insert the new neighbor by appending it to the slice
 	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
-	*revPointer = append(*revPointer, NeighborTuple{isNew: true, Id: Vertex1})
+	*revPointer = append(*revPointer, Vertex1)
 	graph.FreezeReverseNeighbors[Vertex2].Store(revPointer)
 	//Unlock the vertex after modification
 	graph.Locks[Vertex2].Unlock()
