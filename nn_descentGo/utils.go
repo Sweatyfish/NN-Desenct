@@ -40,28 +40,34 @@ func CosineDistance(Vertex1, Vertex2 []float32) float32 {
 	return 1 - dot
 }
 
-func CosineDistanceBatch(VertexID int, NeighbourList []int) []float32 {
-	dim := graph.Dim
-	out := make([]float32, len(NeighbourList))
-	a := graph.Data[VertexID*dim : (VertexID+1)*dim]
-	for j := range NeighbourList {
-		offset := dim * NeighbourList[j]
-		b := graph.Data[offset : offset+dim]
-		var sum float32
+func CosineDistanceBatch(NeighbourList []int) []float32 {
+	dim := 384
+	n := len(NeighbourList)
+	out := make([]float32, n*(n-1)/2)
+	idx := 0
+	for i := 0; i < len(NeighbourList); i++ {
+		offseta := dim * NeighbourList[i]
+		a := graph.Data[offseta : offseta+dim]
+		for j := i + 1; j < len(NeighbourList); j++ {
+			offsetb := dim * NeighbourList[j]
+			b := graph.Data[offsetb : offsetb+dim]
+			var sum float32
 
-		for i := 0; i < dim; i += 8 {
-			sum +=
-				a[i+0]*b[i+0] +
-					a[i+1]*b[i+1] +
-					a[i+2]*b[i+2] +
-					a[i+3]*b[i+3] +
-					a[i+4]*b[i+4] +
-					a[i+5]*b[i+5] +
-					a[i+6]*b[i+6] +
-					a[i+7]*b[i+7]
+			for l := 0; l < dim; l += 8 {
+				sum +=
+					a[l+0]*b[l+0] +
+						a[l+1]*b[l+1] +
+						a[l+2]*b[l+2] +
+						a[l+3]*b[l+3] +
+						a[l+4]*b[l+4] +
+						a[l+5]*b[l+5] +
+						a[l+6]*b[l+6] +
+						a[l+7]*b[l+7]
+			}
+
+			out[idx] = 1 - sum
+			idx++
 		}
-
-		out[j] = 1 - sum
 	}
 	return out
 }
