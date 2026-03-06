@@ -18,19 +18,63 @@ func getNandDFromFilename(filename string) (int, int) {
 	}
 	return N, D
 }
-func getvertex(V int) []float64 {
+func getVertex(V int) []float32 {
 	return graph.Data[V*graph.Dim : (V+1)*graph.Dim]
 }
 
 /* Function to calculate the Euclidean distance between two vectors*/
-func distance(vec1, vec2 []float64) float64 {
+func distance(vec1, vec2 []float32) float32 {
 
-	var total float64 = 0
+	var total float32 = 0
 	for i := range vec1 {
 		diff := vec1[i] - vec2[i]
 		total += diff * diff
 	}
-	return math.Sqrt(total)
+	return (float32(math.Sqrt(float64(total))))
+}
+
+func distance3(a, b []float64) float64 {
+	// cosine distance = 1 - cosine similarity
+	// cosine similarity = (a·b) / (||a|| * ||b||)
+	// use Gonum to do the heavy lifting with vector operations
+	vecA := mat.NewVecDense(len(a), a)
+	vecB := mat.NewVecDense(len(b), b)
+
+	dot := mat.Dot(vecA, vecB)
+	normA := mat.Norm(vecA, 2)
+	normB := mat.Norm(vecB, 2)
+	if normA == 0 || normB == 0 {
+		// if either vector has zero length, define distance as maximum (1.0)
+		return 1.0
+	}
+	cosSim := dot / (normA * normB)
+	return 1 - cosSim
+}
+
+func CosineDistanceBatch(VertexID int, NeighbourList []int) []float64 {
+	dim := graph.Dim
+	out := make([]float64, len(NeighbourList))
+	a := graph.Data[VertexID*dim : (VertexID+1)*dim]
+	for j := range NeighbourList {
+		offset := dim * NeighbourList[j]
+		b := graph.Data[offset : offset+dim]
+		var sum float64
+
+		for i := 0; i < dim; i += 8 {
+			sum +=
+				a[i+0]*b[i+0] +
+					a[i+1]*b[i+1] +
+					a[i+2]*b[i+2] +
+					a[i+3]*b[i+3] +
+					a[i+4]*b[i+4] +
+					a[i+5]*b[i+5] +
+					a[i+6]*b[i+6] +
+					a[i+7]*b[i+7]
+		}
+
+		out[j] = 1 - sum
+	}
+	return out
 }
 
 func distance3(a, b []float64) float64 {
@@ -99,18 +143,15 @@ func getKRandomNumbers(N, K, Alpha int) []int {
 	}
 	return randomNumbers
 }
-func getneighbour(V int) []NeighborTuple {
+func getNeighbor(V int) []NeighborTuple {
 	graph.Locks[V].Lock()
 	list := graph.NeighborsID[V*graph.K : (V+1)*graph.K]
-	for i := V * graph.K; i < (V+1)*graph.K; i++ {
-		graph.NeighborsID[i].Isnew = false
-	}
 	graph.Locks[V].Unlock()
 	return list
 
 }
 
-func getreverseneighbour(V int) []NeighborTuple {
+func getReverseNeighbor(V int) []int {
 	return *graph.ReverseNeighbors[V].Load()
 }
 func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
@@ -123,7 +164,7 @@ func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
 	return SampledSet
 }
 
-func tryInsert(Vertex1, Vertex2 int, distance float64) int {
+func tryInsert(Vertex1, Vertex2 int, distance float32) int {
 	if Vertex1 == Vertex2 {
 		return 0
 	}
@@ -132,8 +173,8 @@ func tryInsert(Vertex1, Vertex2 int, distance float64) int {
 
 	//Check to find the current neighbor with the longest distance for both vertices
 	//Type of this variable is [neighborID, Distance, Placement in neighbor list]
-	LongestNeighborVertex1 := make([]float64, 3)
-	LongestNeighborVertex2 := make([]float64, 3)
+	LongestNeighborVertex1 := make([]float32, 3)
+	LongestNeighborVertex2 := make([]float32, 3)
 	inserted := 0
 	for i := Vertex1 * graph.K; i < (Vertex1+1)*graph.K; i++ {
 		if graph.NeighborsID[i].Id == Vertex2 {
@@ -141,9 +182,9 @@ func tryInsert(Vertex1, Vertex2 int, distance float64) int {
 			break
 		}
 		if LongestNeighborVertex1[1] == 0.0 || graph.Distances[i] > LongestNeighborVertex1[1] {
-			LongestNeighborVertex1[0] = float64(graph.NeighborsID[i].Id)
+			LongestNeighborVertex1[0] = float32(graph.NeighborsID[i].Id)
 			LongestNeighborVertex1[1] = graph.Distances[i]
-			LongestNeighborVertex1[2] = float64(i)
+			LongestNeighborVertex1[2] = float32(i)
 		}
 	}
 	for i := Vertex2 * graph.K; i < (Vertex2+1)*graph.K; i++ {
@@ -152,9 +193,9 @@ func tryInsert(Vertex1, Vertex2 int, distance float64) int {
 			break
 		}
 		if LongestNeighborVertex2[1] == 0.0 || graph.Distances[i] > LongestNeighborVertex2[1] {
-			LongestNeighborVertex2[0] = float64(graph.NeighborsID[i].Id)
+			LongestNeighborVertex2[0] = float32(graph.NeighborsID[i].Id)
 			LongestNeighborVertex2[1] = graph.Distances[i]
-			LongestNeighborVertex2[2] = float64(i)
+			LongestNeighborVertex2[2] = float32(i)
 		}
 	}
 
@@ -166,7 +207,7 @@ func tryInsert(Vertex1, Vertex2 int, distance float64) int {
 		//We need to lock the vertex before modifying its neighbors
 		graph.Locks[Vertex1].Lock()
 		//Insert the new neighbor
-		graph.NeighborsID[int(LongestNeighborVertex1[2])] = NeighborTuple{Isnew: true, Id: Vertex2}
+		graph.NeighborsID[int(LongestNeighborVertex1[2])] = NeighborTuple{isNew: true, Id: Vertex2}
 		//Insert the new distance
 		graph.Distances[int(LongestNeighborVertex1[2])] = distance
 		//Unlock the vertex after modification
@@ -179,7 +220,7 @@ func tryInsert(Vertex1, Vertex2 int, distance float64) int {
 		removeReverseNeighbor(Vertex2, int(LongestNeighborVertex2[0]))
 		InsertNewReverseNeighbor(Vertex2, Vertex1)
 		graph.Locks[Vertex2].Lock()
-		graph.NeighborsID[int(LongestNeighborVertex2[2])] = NeighborTuple{Isnew: true, Id: Vertex1}
+		graph.NeighborsID[int(LongestNeighborVertex2[2])] = NeighborTuple{isNew: true, Id: Vertex1}
 		graph.Distances[int(LongestNeighborVertex2[2])] = distance
 		graph.Locks[Vertex2].Unlock()
 		inserted++
@@ -194,10 +235,11 @@ func removeReverseNeighbor(Vertex1, Vertex2 int) {
 	graph.Locks[Vertex2].Lock()
 	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
 	for i, neighbor := range *revPointer {
-		if neighbor.Id == Vertex1 {
+		if neighbor == Vertex1 {
 			//Remove the neighbor by swapping it with the last element and truncating the slice
 			(*revPointer)[i] = (*revPointer)[len(*revPointer)-1]
 			*revPointer = (*revPointer)[:len(*revPointer)-1]
+
 			break
 		}
 	}
@@ -211,7 +253,7 @@ func InsertNewReverseNeighbor(Vertex1, Vertex2 int) {
 	graph.Locks[Vertex2].Lock()
 	//Insert the new neighbor by appending it to the slice
 	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
-	*revPointer = append(*revPointer, NeighborTuple{Isnew: true, Id: Vertex1})
+	*revPointer = append(*revPointer, Vertex1)
 	graph.FreezeReverseNeighbors[Vertex2].Store(revPointer)
 	//Unlock the vertex after modification
 	graph.Locks[Vertex2].Unlock()

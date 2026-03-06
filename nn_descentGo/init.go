@@ -1,25 +1,43 @@
 package main
 
 import (
-	"encoding/csv"
+	"encoding/binary"
 	"fmt"
 	"os"
-	"strconv"
 	"sync"
 	"sync/atomic"
 )
 
-func initGraph(filepath string, N, D, K int) Graph {
-	fmt.Println("Initializing Graph...")
-	file, err := os.Open(filepath)
+func loadNpyFirstN(filename string, n int, D int) ([]float32, error) {
+	f, err := os.Open(filename)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	defer file.Close()
+	defer f.Close()
 
-	reader := csv.NewReader(file)
+	// Read the 128-byte header (typical .npy v1.0-1.1)
+	header := make([]byte, 128)
+	_, err = f.Read(header)
+	if err != nil {
+		return nil, err
+	}
 
-	records, err := reader.ReadAll()
+	// Allocate only n*D
+	data := make([]float32, n*D)
+
+	// Read first n rows directly
+	err = binary.Read(f, binary.LittleEndian, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func initGraph(N, D, K int) Graph {
+	fmt.Println("Initializing Graph...")
+
+	data, err := loadNpyFirstN("../../data/train.npy", N, D)
 	if err != nil {
 		panic(err)
 	}
@@ -28,30 +46,22 @@ func initGraph(filepath string, N, D, K int) Graph {
 		N:                      N,
 		K:                      K,
 		Dim:                    D,
-		Data:                   make([]float64, N*D),
+		Data:                   make([]float32, N*D),
 		NeighborsID:            make([]NeighborTuple, N*K),
-		ReverseNeighbors:       make([]atomic.Pointer[[]NeighborTuple], N),
-		Distances:              make([]float64, N*K),
+		ReverseNeighbors:       make([]atomic.Pointer[[]int], N),
+		Distances:              make([]float32, N*K),
 		Locks:                  make([]sync.Mutex, N),
-		FreezeReverseNeighbors: make([]atomic.Pointer[[]NeighborTuple], N),
+		FreezeReverseNeighbors: make([]atomic.Pointer[[]int], N),
 	}
-
 	// Insert vector data into graph
-	for i, row := range records {
-		for j, value := range row {
-			graph.Data[i*D+j], err = strconv.ParseFloat(value, 64)
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
+	copy(graph.Data, data)
 
 	// Initialize all atomic pointers to empty slices
 	for i := 0; i < N; i++ {
-		empty := make([]NeighborTuple, 0)
+		empty := make([]int, 0)
 		graph.ReverseNeighbors[i].Store(&empty)
 
-		emptyFreeze := make([]NeighborTuple, 0)
+		emptyFreeze := make([]int, 0)
 		graph.FreezeReverseNeighbors[i].Store(&emptyFreeze)
 	}
 
@@ -64,15 +74,15 @@ func initGraph(filepath string, N, D, K int) Graph {
 			}
 
 			// Set neighbor
-			graph.NeighborsID[I*K+J] = NeighborTuple{Isnew: true, Id: IdList[J]}
-			graph.Distances[I*K+J] = distance(
+			graph.NeighborsID[I*K+J] = NeighborTuple{isNew: true, Id: IdList[J]}
+			graph.Distances[I*K+J] = euclideanDistance(
 				graph.Data[I*D:(I+1)*D],
 				graph.Data[IdList[J]*D:(IdList[J]+1)*D],
 			)
 
 			// Add reverse neighbor
 			revPointer := graph.ReverseNeighbors[IdList[J]].Load()
-			*revPointer = append(*revPointer, NeighborTuple{Isnew: true, Id: I})
+			*revPointer = append(*revPointer, I)
 			graph.ReverseNeighbors[IdList[J]].Store(revPointer)
 		}
 	}
@@ -80,7 +90,7 @@ func initGraph(filepath string, N, D, K int) Graph {
 	// Deep copy ReverseNeighbors into FreezeReverseNeighbors
 	for i := 0; i < N; i++ {
 		ptr := graph.ReverseNeighbors[i].Load()
-		copySlice := make([]NeighborTuple, len(*ptr))
+		copySlice := make([]int, len(*ptr))
 		copy(copySlice, *ptr)
 		graph.FreezeReverseNeighbors[i].Store(&copySlice)
 	}
