@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // this function is used to benchmark the accuracy based on the graph it recieves from main
 // this could also easily be multi-threaded but it would need structural changes in main "Rasmus" I might add this if necessary
 func benchmark(graph Graph) float32 {
@@ -17,6 +19,9 @@ func benchmark(graph Graph) float32 {
 					break
 				}
 			}
+		}
+		if (i%1000 == 0){
+			fmt.Println(i,"/",graph.N)
 		}
 	}
 
