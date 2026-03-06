@@ -2,6 +2,10 @@
 
 This project implements a variation of the **NN-Descent** algorithm for approximate nearest neighbor search.
 
+go tool pprof cpu.prof
+(pprof) top
+(pprof) list NNDecent
+
 Currently, we use:
 
 - `matplotlib.pyplot` to visualize the graph.
