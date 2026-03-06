@@ -16,19 +16,19 @@ func getNandDFromFilename(filename string) (int, int) {
 	}
 	return N, D
 }
-func getvertex(V int) []float64 {
+func getvertex(V int) []float32 {
 	return graph.Data[V*graph.Dim : (V+1)*graph.Dim]
 }
 
 /* Function to calculate the Euclidean distance between two vectors*/
-func euclideanDistance(vec1, vec2 []float64) float64 {
+func euclideanDistance(vec1, vec2 []float32) float32 {
 
-	var total float64 = 0
+	var total float32 = 0
 	for i := range vec1 {
 		diff := vec1[i] - vec2[i]
 		total += diff * diff
 	}
-	return math.Sqrt(total)
+	return (float32(math.Sqrt(float64(total))))
 }
 
 /* Helper function to check if a slice contains a specific number*/
@@ -77,7 +77,7 @@ func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
 	return SampledSet
 }
 
-func tryInsert(Vertex1, Vertex2 int, distance float64) int {
+func tryInsert(Vertex1, Vertex2 int, distance float32) int {
 	if Vertex1 == Vertex2 {
 		return 0
 	}
@@ -86,8 +86,8 @@ func tryInsert(Vertex1, Vertex2 int, distance float64) int {
 
 	//Check to find the current neighbor with the longest distance for both vertices
 	//Type of this variable is [neighborID, Distance, Placement in neighbor list]
-	LongestNeighborVertex1 := make([]float64, 3)
-	LongestNeighborVertex2 := make([]float64, 3)
+	LongestNeighborVertex1 := make([]float32, 3)
+	LongestNeighborVertex2 := make([]float32, 3)
 	inserted := 0
 	for i := Vertex1 * graph.K; i < (Vertex1+1)*graph.K; i++ {
 		if graph.NeighborsID[i].Id == Vertex2 {
@@ -95,9 +95,9 @@ func tryInsert(Vertex1, Vertex2 int, distance float64) int {
 			break
 		}
 		if LongestNeighborVertex1[1] == 0.0 || graph.Distances[i] > LongestNeighborVertex1[1] {
-			LongestNeighborVertex1[0] = float64(graph.NeighborsID[i].Id)
+			LongestNeighborVertex1[0] = float32(graph.NeighborsID[i].Id)
 			LongestNeighborVertex1[1] = graph.Distances[i]
-			LongestNeighborVertex1[2] = float64(i)
+			LongestNeighborVertex1[2] = float32(i)
 		}
 	}
 	for i := Vertex2 * graph.K; i < (Vertex2+1)*graph.K; i++ {
@@ -106,9 +106,9 @@ func tryInsert(Vertex1, Vertex2 int, distance float64) int {
 			break
 		}
 		if LongestNeighborVertex2[1] == 0.0 || graph.Distances[i] > LongestNeighborVertex2[1] {
-			LongestNeighborVertex2[0] = float64(graph.NeighborsID[i].Id)
+			LongestNeighborVertex2[0] = float32(graph.NeighborsID[i].Id)
 			LongestNeighborVertex2[1] = graph.Distances[i]
-			LongestNeighborVertex2[2] = float64(i)
+			LongestNeighborVertex2[2] = float32(i)
 		}
 	}
 
@@ -152,6 +152,7 @@ func removeReverseNeighbor(Vertex1, Vertex2 int) {
 			//Remove the neighbor by swapping it with the last element and truncating the slice
 			(*revPointer)[i] = (*revPointer)[len(*revPointer)-1]
 			*revPointer = (*revPointer)[:len(*revPointer)-1]
+
 			break
 		}
 	}

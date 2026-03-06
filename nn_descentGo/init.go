@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 )
 
-func loadNpyFirstN(filename string, n int, D int) ([]float64, error) {
+func loadNpyFirstN(filename string, n int, D int) ([]float32, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func loadNpyFirstN(filename string, n int, D int) ([]float64, error) {
 	}
 
 	// Allocate only n*D
-	data := make([]float64, n*D)
+	data := make([]float32, n*D)
 
 	// Read first n rows directly
 	err = binary.Read(f, binary.LittleEndian, &data)
@@ -37,7 +37,7 @@ func loadNpyFirstN(filename string, n int, D int) ([]float64, error) {
 func initGraph(N, D, K int) Graph {
 	fmt.Println("Initializing Graph...")
 
-	data, err := loadNpyFirstN("../../data/train.npy",N,D)
+	data, err := loadNpyFirstN("../../data/train.npy", N, D)
 	if err != nil {
 		panic(err)
 	}
@@ -46,10 +46,10 @@ func initGraph(N, D, K int) Graph {
 		N:                      N,
 		K:                      K,
 		Dim:                    D,
-		Data:                   make([]float64, N*D),
+		Data:                   make([]float32, N*D),
 		NeighborsID:            make([]NeighborTuple, N*K),
 		ReverseNeighbors:       make([]atomic.Pointer[[]NeighborTuple], N),
-		Distances:              make([]float64, N*K),
+		Distances:              make([]float32, N*K),
 		Locks:                  make([]sync.Mutex, N),
 		FreezeReverseNeighbors: make([]atomic.Pointer[[]NeighborTuple], N),
 	}

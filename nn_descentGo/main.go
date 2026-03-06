@@ -11,11 +11,12 @@ import (
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
 var K = 10
-var N = 4000
+var N = 10000
 var Delta = 0.001
 var numThreads = 4
 var rho float32 = 0.5
 var benchmarking = true
+var timemeasure = false
 
 /* amount of verticies each lock resides over */
 
@@ -26,10 +27,10 @@ type NeighborTuple struct {
 
 type Graph struct {
 	N, K, Dim              int
-	Data                   []float64 /*Prolly needs changing*/
+	Data                   []float32 /*Prolly needs changing*/
 	NeighborsID            []NeighborTuple
 	ReverseNeighbors       []atomic.Pointer[[]NeighborTuple]
-	Distances              []float64
+	Distances              []float32
 	FreezeReverseNeighbors []atomic.Pointer[[]NeighborTuple]
 	Locks                  []sync.Mutex
 }
@@ -52,6 +53,7 @@ func NNDecent(c chan int) {
 	newneighbours := mapset.NewSet[int]()
 	oldprime := mapset.NewSet[int]()
 	newprime := mapset.NewSet[int]()
+
 	for true {
 		// Wait for a id to be sent on the channel and then process it
 		V := <-c
@@ -73,70 +75,65 @@ func NNDecent(c chan int) {
 				}
 			}
 		}
+
 		/*Iterate over the reverse neighbors of V and add them to the corresponding sets based on whether they are new or old neighbors.*/
 		/*We take reverseneighbours and add them to two seperate lists*/
-		for Vertex := range newneighbours.Union(oldneighbours).Iter() {
-			for _, neighbor := range getreverseneighbour(Vertex) {
+		for _, Vertex := range graph.NeighborsID[V*graph.K : (V+1)*graph.K] {
+
+			for _, neighbor := range getreverseneighbour(Vertex.Id) {
+
 				if neighbor.Id != V {
 					if neighbor.Isnew {
 						newprime.Add(neighbor.Id)
+						//if V == 134 {
+						//	counter++
+						//}
 					} else {
 						oldprime.Add(neighbor.Id)
 					}
 				}
 			}
-			//Union operations on the 4 sets with sampling, also making them into a slice
-			newneighbours = newneighbours.Union(sampleKRandomNeighbors(newprime, rho))
-			oldneighbours = oldneighbours.Union(sampleKRandomNeighbors(oldprime, rho))
-			newneighbourslist := newneighbours.ToSlice()
-			oldneighbourslist := oldneighbours.ToSlice()
-
-			//Set all current neighbors and reverse neighbors to old neighbors for the next iteration needs to be done before we begin changing neighbors
-			for _, neighbor := range getneighbour(Vertex) {
-				neighbor.Isnew = false
-			}
-
-			//The same for the reverse neighbors
-			//This (!IMPORTANT!) This is SUBOPTIMAL, but currently i dont now of a better way to do this, since no thread has the full picture of which are new or old reverse neighbors
-			graph.Locks[Vertex].Lock()
-
-			slicePtr := graph.FreezeReverseNeighbors[Vertex].Load()
-			if slicePtr != nil {
-				slice := *slicePtr
-				for i := range slice {
-					slice[i].Isnew = false
-				}
-			}
-
-			graph.Locks[Vertex].Unlock()
-			//The main loop checking neighbors neighbors against each other
-			for i := 0; i < len(newneighbourslist); i++ {
-
-				if newneighbourslist[i] == V {
-					println("Found itself in the new neighbor list, this should not happen")
-				}
-
-				for j := i + 1; j < len(newneighbourslist); j++ {
-					distance := euclideanDistance(getvertex(newneighbourslist[i]), getvertex(newneighbourslist[j]))
-					//println("Distance between", newneighbourslist[i], "and", newneighbourslist[j], "is", distance)
-					addToNewNeighbors += tryInsert(newneighbourslist[i], newneighbourslist[j], distance)
-				}
-				for j := 0; j < len(oldneighbourslist); j++ {
-					distance := euclideanDistance(getvertex(newneighbourslist[i]), getvertex(oldneighbourslist[j]))
-					addToNewNeighbors += tryInsert(newneighbourslist[i], oldneighbourslist[j], distance)
-				}
-			}
-			//Adding the amount of new neighbors found to the total amount of new neighbors found in this iteration
-			NewneighboursLock.Lock()
-			Newneighboursfound += addToNewNeighbors
-			NewneighboursLock.Unlock()
-
 		}
+
+		//Union operations on the 4 sets with sampling, also making them into a slice
+		newneighbours = newneighbours.Union(sampleKRandomNeighbors(newprime, rho))
+		oldneighbours = oldneighbours.Union(sampleKRandomNeighbors(oldprime, rho))
+		newneighbourslist := newneighbours.ToSlice()
+		oldneighbourslist := oldneighbours.ToSlice()
+
+		//Set all current neighbors and reverse neighbors to old neighbors for the next iteration needs to be done before we begin changing neighbors
+		for _, neighbor := range getneighbour(V) {
+			neighbor.Isnew = false
+		}
+
+		//The same for the reverse neighbors
+		//This (!IMPORTANT!) This is SUBOPTIMAL, but currently i dont now of a better way to do this, since no thread has the full picture of which are new or old reverse neighbors
+		//The main loop checking neighbors neighbors against each other
+		for i := 0; i < len(newneighbourslist); i++ {
+
+			if newneighbourslist[i] == V {
+				println("Found itself in the new neighbor list, this should not happen")
+			}
+
+			for j := i + 1; j < len(newneighbourslist); j++ {
+				distance := euclideanDistance(getvertex(newneighbourslist[i]), getvertex(newneighbourslist[j]))
+				//println("Distance between", newneighbourslist[i], "and", newneighbourslist[j], "is", distance)
+				addToNewNeighbors += tryInsert(newneighbourslist[i], newneighbourslist[j], distance)
+			}
+			for j := 0; j < len(oldneighbourslist); j++ {
+				distance := euclideanDistance(getvertex(newneighbourslist[i]), getvertex(oldneighbourslist[j]))
+				addToNewNeighbors += tryInsert(newneighbourslist[i], oldneighbourslist[j], distance)
+			}
+		}
+		//Adding the amount of new neighbors found to the total amount of new neighbors found in this iteration
+		NewneighboursLock.Lock()
+		Newneighboursfound += addToNewNeighbors
+		NewneighboursLock.Unlock()
+
 		//Adding a finished vertex to the counter lock
 		Counterlock.Lock()
 		Counter++
 		Counterlock.Unlock()
-
 	}
 }
 
@@ -160,7 +157,9 @@ func main() {
 		NewneighboursLock.Lock()
 		Newneighboursfound = 0
 		NewneighboursLock.Unlock()
+
 		start := time.Now()
+
 		for i := 0; i < N; i++ {
 			c <- i
 
@@ -168,10 +167,15 @@ func main() {
 
 		//Wait until all vertices have been processed before procedding
 		for Counter != N {
+
 			time.Sleep(50 * time.Millisecond)
 		}
+
 		end := time.Now()
-		fmt.Println("Time taken to process all vertices in this iteration:", end.Sub(start))
+		if timemeasure {
+			fmt.Println("Time taken to process all vertices in this iteration:", end.Sub(start))
+		}
+
 		//Reset the counter for the next iteration
 		Counterlock.Lock()
 		Counter = 0
@@ -185,17 +189,28 @@ func main() {
 			copy(newSlice, ListToCopy)
 			graph.ReverseNeighbors[i].Store(&newSlice)
 		}
+
 		end = time.Now()
-		fmt.Println("Time taken to update reverse neighbors:", end.Sub(start))
+		if timemeasure {
+			fmt.Println("Time taken to update reverse neighbors:", end.Sub(start))
+		}
+
 		Iterations++
 		fmt.Println("New neighbors found in this iteration:", Newneighboursfound)
+
 	}
+
 	start := time.Now()
+
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
 		accuracy := benchmark(graph)
 		fmt.Println("Calculated Accuracy is:", accuracy, "%")
 	}
+
 	end := time.Now()
-	fmt.Println("Time taken to benchmark:", end.Sub(start))
+	if timemeasure {
+		fmt.Println("Time taken to benchmark:", end.Sub(start))
+	}
+
 }
