@@ -10,10 +10,10 @@ import (
 )
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var k = 7
+var k = 10
 var n = 10000
 var delta = 0.001
-var numThreads = 4
+var numThreads = 5
 var rho float32 = 0.5
 var benchmarking = true
 var timeMeasure = true
@@ -63,7 +63,7 @@ func NNDecent(c chan int) {
 		oldPrime.Clear()
 		newPrime.Clear()
 		//This will add up to be the amount of new neighbors this iteration on this vertex found
-		addToNewNeighbors := 0
+		addToNewNeighbours := 0
 
 		/*We go through all the neighbours and check whether they are new or old neighbours */
 		for _, neighbor := range getNeighbor(V) {
@@ -98,8 +98,8 @@ func NNDecent(c chan int) {
 		//Union operations on the 4 sets with sampling, also making them into a slice
 		newNeighbors = newNeighbors.Union(sampleKRandomNeighbors(newPrime, rho))
 		oldNeighbors = oldNeighbors.Union(sampleKRandomNeighbors(oldPrime, rho))
-		newNeighborsList := newNeighbors.ToSlice()
-		oldNeighborsList := oldNeighbors.ToSlice()
+		newNeighboursList := newNeighbors.ToSlice()
+		oldNeighboursList := oldNeighbors.ToSlice()
 
 		//Set all current neighbors and reverse neighbors to old neighbors for the next iteration needs to be done before we begin changing neighbors
 		neighbors := getNeighbor(V)
@@ -110,21 +110,38 @@ func NNDecent(c chan int) {
 		//The same for the reverse neighbors
 		//This (!IMPORTANT!) This is SUBOPTIMAL, but currently i dont now of a better way to do this, since no thread has the full picture of which are new or old reverse neighbors
 		//The main loop checking neighbors neighbors against each other
-		for i := 0; i < len(newNeighborsList); i++ {
-
-			for j := i + 1; j < len(newNeighborsList); j++ {
-				distance := euclideanDistance(getVertex(newNeighborsList[i]), getVertex(newNeighborsList[j]))
-				//println("Distance between", newneighbourslist[i], "and", newneighbourslist[j], "is", distance)
-				addToNewNeighbors += tryInsert(newNeighborsList[i], newNeighborsList[j], distance)
+		for i := 0; i < len(newNeighboursList); i++ {
+			/* DistancesNew := CosineDistanceBatch(newNeighboursList[i], newNeighboursList[i+1:])
+			for d := 0; d < len(DistancesNew); d++ {
+				addToNewNeighbours += tryInsert(newNeighboursList[i], newNeighboursList[d+1], DistancesNew[d])
 			}
-			for j := 0; j < len(oldNeighborsList); j++ {
-				distance := euclideanDistance(getVertex(newNeighborsList[i]), getVertex(oldNeighborsList[j]))
-				addToNewNeighbors += tryInsert(newNeighborsList[i], oldNeighborsList[j], distance)
+			*/
+
+			for j := i + 1; j < len(newNeighboursList); j++ {
+
+				distance := CosineDistance(getVertex(newNeighboursList[i]), getVertex(newNeighboursList[j]))
+				//println("Distance between", newneighbourslist[i], "and", newneighbourslist[j], "is", distance)
+				addToNewNeighbours += tryInsert(newNeighboursList[i], newNeighboursList[j], distance)
+			}
+			/*
+				if len(oldNeighboursList) < 1 {
+					continue
+				}
+
+				DistancesOld := CosineDistanceBatch(newNeighboursList[i], oldNeighboursList)
+
+				for d := 0; d < len(DistancesOld); d++ {
+
+					addToNewNeighbours += tryInsert(newNeighboursList[i], oldNeighboursList[d], DistancesOld[d])
+				}*/
+			for j := 0; j < len(oldNeighboursList); j++ {
+				distance := CosineDistance(getVertex(newNeighboursList[i]), getVertex(oldNeighboursList[j]))
+				addToNewNeighbours += tryInsert(newNeighboursList[i], oldNeighboursList[j], distance)
 			}
 		}
 		//Adding the amount of new neighbors found to the total amount of new neighbors found in this iteration
 		newNeighborsLock.Lock()
-		newNeighborsFound += addToNewNeighbors
+		newNeighborsFound += addToNewNeighbours
 		newNeighborsLock.Unlock()
 
 		//Adding a finished vertex to the counter lock

@@ -2,10 +2,7 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
-
-	"gonum.org/v1/gonum/mat"
 
 	mapset "github.com/deckarep/golang-set/v2"
 )
@@ -23,86 +20,34 @@ func getVertex(V int) []float32 {
 }
 
 /* Function to calculate the Euclidean distance between two vectors*/
-func distance(vec1, vec2 []float32) float32 {
+func euclideanDistance(vec1, vec2 []float32) float32 {
 
 	var total float32 = 0
 	for i := range vec1 {
 		diff := vec1[i] - vec2[i]
 		total += diff * diff
 	}
-	return (float32(math.Sqrt(float64(total))))
+	return (float32((float32(total))))
 }
 
-func distance3(a, b []float64) float64 {
-	// cosine distance = 1 - cosine similarity
-	// cosine similarity = (a·b) / (||a|| * ||b||)
-	// use Gonum to do the heavy lifting with vector operations
-	vecA := mat.NewVecDense(len(a), a)
-	vecB := mat.NewVecDense(len(b), b)
+func CosineDistance(Vertex1, Vertex2 []float32) float32 {
+	var dot float32
 
-	dot := mat.Dot(vecA, vecB)
-	normA := mat.Norm(vecA, 2)
-	normB := mat.Norm(vecB, 2)
-	if normA == 0 || normB == 0 {
-		// if either vector has zero length, define distance as maximum (1.0)
-		return 1.0
+	for i := 0; i < graph.Dim; i++ {
+		dot += Vertex1[i] * Vertex2[i]
 	}
-	cosSim := dot / (normA * normB)
-	return 1 - cosSim
+
+	return 1 - dot
 }
 
-func CosineDistanceBatch(VertexID int, NeighbourList []int) []float64 {
+func CosineDistanceBatch(VertexID int, NeighbourList []int) []float32 {
 	dim := graph.Dim
-	out := make([]float64, len(NeighbourList))
+	out := make([]float32, len(NeighbourList))
 	a := graph.Data[VertexID*dim : (VertexID+1)*dim]
 	for j := range NeighbourList {
 		offset := dim * NeighbourList[j]
 		b := graph.Data[offset : offset+dim]
-		var sum float64
-
-		for i := 0; i < dim; i += 8 {
-			sum +=
-				a[i+0]*b[i+0] +
-					a[i+1]*b[i+1] +
-					a[i+2]*b[i+2] +
-					a[i+3]*b[i+3] +
-					a[i+4]*b[i+4] +
-					a[i+5]*b[i+5] +
-					a[i+6]*b[i+6] +
-					a[i+7]*b[i+7]
-		}
-
-		out[j] = 1 - sum
-	}
-	return out
-}
-
-func distance3(a, b []float64) float64 {
-	// cosine distance = 1 - cosine similarity
-	// cosine similarity = (a·b) / (||a|| * ||b||)
-	// use Gonum to do the heavy lifting with vector operations
-	vecA := mat.NewVecDense(len(a), a)
-	vecB := mat.NewVecDense(len(b), b)
-
-	dot := mat.Dot(vecA, vecB)
-	normA := mat.Norm(vecA, 2)
-	normB := mat.Norm(vecB, 2)
-	if normA == 0 || normB == 0 {
-		// if either vector has zero length, define distance as maximum (1.0)
-		return 1.0
-	}
-	cosSim := dot / (normA * normB)
-	return 1 - cosSim
-}
-
-func CosineDistanceBatch(VertexID int, NeighbourList []int) []float64 {
-	dim := graph.Dim
-	out := make([]float64, len(NeighbourList))
-	a := graph.Data[VertexID*dim : (VertexID+1)*dim]
-	for j := range NeighbourList {
-		offset := dim * NeighbourList[j]
-		b := graph.Data[offset : offset+dim]
-		var sum float64
+		var sum float32
 
 		for i := 0; i < dim; i += 8 {
 			sum +=

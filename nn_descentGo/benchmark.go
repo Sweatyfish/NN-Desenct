@@ -20,8 +20,8 @@ func benchmark(graph Graph) float32 {
 				}
 			}
 		}
-		if (i%1000 == 0){
-			fmt.Println(i,"/",graph.N)
+		if i%1000 == 0 {
+			fmt.Println(i, "/", graph.N)
 		}
 	}
 
@@ -34,7 +34,7 @@ func getTrueNN(vertex int) []int {
 	distanceList := make([]float32, 0)
 	for i := 0; i < graph.N; i++ {
 		if i != vertex {
-			calculatedDistance := distance(graph.Data[vertex*graph.Dim:(vertex+1)*graph.Dim], graph.Data[i*graph.Dim:(i+1)*graph.Dim])
+			calculatedDistance := euclideanDistance(graph.Data[vertex*graph.Dim:(vertex+1)*graph.Dim], graph.Data[i*graph.Dim:(i+1)*graph.Dim])
 			if len(truenn) <= graph.K {
 				truenn = append(truenn, i)
 				distanceList = append(distanceList, calculatedDistance)
