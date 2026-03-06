@@ -2,4 +2,9 @@ module nn_descentGo
 
 go 1.25.6
 
-require github.com/deckarep/golang-set/v2 v2.8.0 // indirect
+require gonum.org/v1/gonum v0.17.0
+
+require (
+	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
+	gonum.org/v1/netlib v0.0.0-20230729102104-8b8060e7531f // indirect
+)

@@ -1,2 +1,6 @@
 github.com/deckarep/golang-set/v2 v2.8.0 h1:swm0rlPCmdWn9mESxKOjWk8hXSqoxOp+ZlfuyaAdFlQ=
 github.com/deckarep/golang-set/v2 v2.8.0/go.mod h1:VAky9rY/yGXJOLEDv3OMci+7wtDpOF4IN+y82NBOac4=
+gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
+gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
+gonum.org/v1/netlib v0.0.0-20230729102104-8b8060e7531f h1:4UbBeKPI3rC830Vz9CQaU72v2SQ1ahvRmMEPhpPLwC0=
+gonum.org/v1/netlib v0.0.0-20230729102104-8b8060e7531f/go.mod h1:6Mn9FPbBqhIzqrUWsq8EvvqYKz+jYS3YDMufWRE6j8c=

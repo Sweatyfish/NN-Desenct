@@ -10,7 +10,7 @@ import (
 )
 
 /*Set Filname to the corresponding data set you want to load*/
-var filename string = "data-N_5000-D_80.csv"
+var filename string = "data-N_5000-D_160.csv"
 var filepath string = "Data/" + filename
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
@@ -120,12 +120,12 @@ func NNDecent(c chan int) {
 				}
 
 				for j := i + 1; j < len(newneighbourslist); j++ {
-					distance := euclideanDistance(getvertex(newneighbourslist[i]), getvertex(newneighbourslist[j]))
+					distance := distance(getvertex(newneighbourslist[i]), getvertex(newneighbourslist[j]))
 					//println("Distance between", newneighbourslist[i], "and", newneighbourslist[j], "is", distance)
 					addToNewNeighbors += tryInsert(newneighbourslist[i], newneighbourslist[j], distance)
 				}
 				for j := 0; j < len(oldneighbourslist); j++ {
-					distance := euclideanDistance(getvertex(newneighbourslist[i]), getvertex(oldneighbourslist[j]))
+					distance := distance(getvertex(newneighbourslist[i]), getvertex(oldneighbourslist[j]))
 					addToNewNeighbors += tryInsert(newneighbourslist[i], oldneighbourslist[j], distance)
 				}
 			}

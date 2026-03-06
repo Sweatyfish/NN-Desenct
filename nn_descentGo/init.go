@@ -65,7 +65,7 @@ func initGraph(filepath string, N, D, K int) Graph {
 
 			// Set neighbor
 			graph.NeighborsID[I*K+J] = NeighborTuple{Isnew: true, Id: IdList[J]}
-			graph.Distances[I*K+J] = euclideanDistance(
+			graph.Distances[I*K+J] = distance(
 				graph.Data[I*D:(I+1)*D],
 				graph.Data[IdList[J]*D:(IdList[J]+1)*D],
 			)
