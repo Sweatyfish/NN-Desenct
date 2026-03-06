@@ -10,13 +10,13 @@ import (
 )
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var K = 10
-var N = 10000
+var K = 15
+var N = 5000
 var Delta = 0.001
 var numThreads = 4
 var rho float32 = 0.5
 var benchmarking = true
-var timemeasure = false
+var timemeasure = true
 
 /* amount of verticies each lock resides over */
 
@@ -102,8 +102,9 @@ func NNDecent(c chan int) {
 		oldneighbourslist := oldneighbours.ToSlice()
 
 		//Set all current neighbors and reverse neighbors to old neighbors for the next iteration needs to be done before we begin changing neighbors
-		for _, neighbor := range getneighbour(V) {
-			neighbor.Isnew = false
+		neighbors := getneighbour(V)
+		for i := range neighbors {
+			neighbors[i].Isnew = false
 		}
 
 		//The same for the reverse neighbors
