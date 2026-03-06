@@ -16,7 +16,7 @@ func getNandDFromFilename(filename string) (int, int) {
 	}
 	return N, D
 }
-func getvertex(V int) []float32 {
+func getVertex(V int) []float32 {
 	return graph.Data[V*graph.Dim : (V+1)*graph.Dim]
 }
 
@@ -53,18 +53,18 @@ func getKRandomNumbers(N, K, Alpha int) []int {
 	}
 	return randomNumbers
 }
-func getneighbour(V int) []NeighborTuple {
+func getNeighbor(V int) []NeighborTuple {
 	graph.Locks[V].Lock()
 	list := graph.NeighborsID[V*graph.K : (V+1)*graph.K]
 	for i := V * graph.K; i < (V+1)*graph.K; i++ {
-		graph.NeighborsID[i].Isnew = false
+		graph.NeighborsID[i].isNew = false
 	}
 	graph.Locks[V].Unlock()
 	return list
 
 }
 
-func getreverseneighbour(V int) []NeighborTuple {
+func getReverseNeighbor(V int) []NeighborTuple {
 	return *graph.ReverseNeighbors[V].Load()
 }
 func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
@@ -120,7 +120,7 @@ func tryInsert(Vertex1, Vertex2 int, distance float32) int {
 		//We need to lock the vertex before modifying its neighbors
 		graph.Locks[Vertex1].Lock()
 		//Insert the new neighbor
-		graph.NeighborsID[int(LongestNeighborVertex1[2])] = NeighborTuple{Isnew: true, Id: Vertex2}
+		graph.NeighborsID[int(LongestNeighborVertex1[2])] = NeighborTuple{isNew: true, Id: Vertex2}
 		//Insert the new distance
 		graph.Distances[int(LongestNeighborVertex1[2])] = distance
 		//Unlock the vertex after modification
@@ -133,7 +133,7 @@ func tryInsert(Vertex1, Vertex2 int, distance float32) int {
 		removeReverseNeighbor(Vertex2, int(LongestNeighborVertex2[0]))
 		InsertNewReverseNeighbor(Vertex2, Vertex1)
 		graph.Locks[Vertex2].Lock()
-		graph.NeighborsID[int(LongestNeighborVertex2[2])] = NeighborTuple{Isnew: true, Id: Vertex1}
+		graph.NeighborsID[int(LongestNeighborVertex2[2])] = NeighborTuple{isNew: true, Id: Vertex1}
 		graph.Distances[int(LongestNeighborVertex2[2])] = distance
 		graph.Locks[Vertex2].Unlock()
 		inserted++
@@ -166,7 +166,7 @@ func InsertNewReverseNeighbor(Vertex1, Vertex2 int) {
 	graph.Locks[Vertex2].Lock()
 	//Insert the new neighbor by appending it to the slice
 	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
-	*revPointer = append(*revPointer, NeighborTuple{Isnew: true, Id: Vertex1})
+	*revPointer = append(*revPointer, NeighborTuple{isNew: true, Id: Vertex1})
 	graph.FreezeReverseNeighbors[Vertex2].Store(revPointer)
 	//Unlock the vertex after modification
 	graph.Locks[Vertex2].Unlock()
