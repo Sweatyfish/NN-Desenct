@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,13 +12,13 @@ import (
 )
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var k = 7
-var n = 10000
+var k = 15
+var n = 20000
 var delta = 0.001
 var numThreads = 4
 var rho float32 = 0.5
-var benchmarking = true
-var timeMeasure = true
+var benchmarking = false
+var timeMeasure = false
 
 /* amount of verticies each lock resides over */
 
@@ -88,12 +90,6 @@ func NNDecent(c chan int) {
 				oldPrime.Add(reverseNeighbor)
 			}
 		}
-		if V == 10 {
-			fmt.Println("newNeighborList:", len(newNeighbors.ToSlice()))
-			fmt.Println("oldNeighborList:", len(oldNeighbors.ToSlice()))
-			fmt.Println("newPrimeList:", len(newPrime.ToSlice()))
-			fmt.Println("oldPrimeList:", len(oldPrime.ToSlice()))
-		}
 
 		//Union operations on the 4 sets with sampling, also making them into a slice
 		newNeighbors = newNeighbors.Union(sampleKRandomNeighbors(newPrime, rho))
@@ -135,36 +131,43 @@ func NNDecent(c chan int) {
 }
 
 func main() {
+	// Start CPU profiling
+    f, err := os.Create("cpu.prof")
+    if err != nil {
+        panic(err)
+    }
+    pprof.StartCPUProfile(f)
+    defer func() {
+        pprof.StopCPUProfile()
+        f.Close()
+    }()
 	graph = initGraph(n, 384, k)
 	//Instastiate to -1 for entering the first loop
 	newNeighborsFound = -1
 	c := make(chan int)
 	//Start the NNDescent algorithm with the specified amount of threads
 	for i := 0; i < numThreads; i++ {
-
 		go NNDecent(c)
-
 	}
 	iterations := 0
 	//This master threads will send vertex ids to the worker threads and check the stopping condition after each iteration, it will also update the reverse neighbors with the freeze reverse neighbors after each iteration
 	//Updating the reverse neighbors could be multithreaded as well, but would require deeper changes to the code, so I decided to keep it single threaded for now
 	//The way we currently keep track of which neighbors to switch should also be a heap currently is not optimal
+	totalTimeStart := time.Now()
 	for float64(newNeighborsFound) > delta*float64(k)*float64(n) || newNeighborsFound == -1 {
 		fmt.Println("Iteration number:", iterations)
+		
 		newNeighborsLock.Lock()
 		newNeighborsFound = 0
 		newNeighborsLock.Unlock()
 
 		start := time.Now()
-
 		for i := 0; i < n; i++ {
 			c <- i
-
 		}
 
 		//Wait until all vertices have been processed before procedding
 		for counter != n {
-
 			time.Sleep(50 * time.Millisecond)
 		}
 
@@ -194,10 +197,10 @@ func main() {
 
 		iterations++
 		fmt.Println("New neighbors found in this iteration:", newNeighborsFound)
-
 	}
 
 	start := time.Now()
+	fmt.Println(time.Since(totalTimeStart))
 
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
@@ -209,5 +212,4 @@ func main() {
 	if timeMeasure {
 		fmt.Println("Time taken to benchmark:", end.Sub(start))
 	}
-
 }
