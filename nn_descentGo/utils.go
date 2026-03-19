@@ -186,7 +186,7 @@ func insert(v1Id, v2Id int, nInfo neighborInfo, distance float32) (int, neighbor
 
 	graph.Locks[v1Id].Lock()
 	graph.NeighborsID[nInfo.index] = NeighborTuple{isNew: true, Id: v2Id}
-	graph.Distances[nInfo.index] = nInfo.distance
+	graph.Distances[nInfo.index] = distance
 	graph.Locks[v1Id].Unlock()
 	removeReverseNeighbor(v1Id,nInfo.id)
 	InsertNewReverseNeighbor(v1Id, v2Id)

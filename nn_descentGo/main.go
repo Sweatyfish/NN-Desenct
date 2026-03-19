@@ -13,11 +13,11 @@ import (
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
 var k = 10
-var n = 10000
+var n = 4000
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
-var benchmarking = false
+var benchmarking = true
 var timeMeasure = false
 
 /* amount of verticies each lock resides over */
@@ -102,7 +102,6 @@ func NNDecent(c chan int) {
 		oldNeighbors = oldNeighbors.Union(sampleKRandomNeighbors(oldPrime, rho))
 		newNeighboursList := newNeighbors.ToSlice()
 		oldNeighboursList := oldNeighbors.ToSlice()
-
 		//Set all current neighbors and reverse neighbors to old neighbors for the next iteration needs to be done before we begin changing neighbors
 		neighbors := getNeighbor(V)
 		for i := range neighbors {
