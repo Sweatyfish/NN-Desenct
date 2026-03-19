@@ -12,8 +12,8 @@ import (
 )
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var k = 8
-var n = 4000
+var k = 2
+var n = 10
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
@@ -48,6 +48,12 @@ var (
 	counterLock sync.Mutex
 	counter     int
 )
+
+type neighborInfo struct {
+	id       int
+	distance float32
+	index    int
+}
 
 func NNDecent(c chan int) {
 	//Instantiate the sets of old and new neighbors
@@ -108,44 +114,38 @@ func NNDecent(c chan int) {
 		//The main loop checking neighbors neighbors against each other
 		NxNMatrix := CosineDistanceBatchN(newNeighboursList)
 		NxOMatrix := CosineDistanceBatchNM(newNeighboursList, oldNeighboursList)
+
+		// Indexes
 		idx1 := 0
 		idx2 := 0
+		added := 0
+
+		// This is the distance from i to it's worst neigbor
+		var worstPrimary neighborInfo
+		// This is the distance from j to it's worst neigbor
+		var worstSecondary neighborInfo
+
 		for i := 0; i < len(newNeighboursList); i++ {
-
+			worstPrimary = getWorstNeighborInfo(newNeighboursList[i])
 			for j := i + 1; j < len(newNeighboursList); j++ {
-				addToNewNeighbours += tryInsert(newNeighboursList[i], newNeighboursList[j], NxNMatrix[idx1])
+				dist := NxNMatrix[idx1]
+				worstSecondary = getWorstNeighborInfo(newNeighboursList[j])
+				// If the worst neigbor for i is worse than the neigbor we are checking with replace that neigbor
+				if worstPrimary.distance > dist{
+					added, worstPrimary = insert(newNeighboursList[i],newNeighboursList[j],worstPrimary,dist)
+					addToNewNeighbours += added
+				}
+				if worstSecondary.distance > dist{
+					added, _ = insert(newNeighboursList[j],newNeighboursList[i],worstPrimary,dist)
+					addToNewNeighbours += added
+				}
 				idx1++
-
+				
 			}
 			for j := 0; j < len(oldNeighboursList); j++ {
 				addToNewNeighbours += tryInsert(newNeighboursList[i], oldNeighboursList[j], NxOMatrix[idx2])
 				idx2++
-
 			}
-
-			/*
-				for j := i + 1; j < len(newNeighboursList); j++ {
-
-					distance := CosineDistance(getVertex(newNeighboursList[i]), getVertex(newNeighboursList[j]))
-					//println("Distance between", newneighbourslist[i], "and", newneighbourslist[j], "is", distance)
-					addToNewNeighbours += tryInsert(newNeighboursList[i], newNeighboursList[j], distance)
-				}
-			*/
-			/*
-				if len(oldNeighboursList) < 1 {
-					continue
-
-				}
-
-
-
-				for d := 0; d < len(DistancesOld); d++ {
-					println("kom nu")
-
-					addToNewNeighbours += tryInsert(newNeighboursList[i], oldNeighboursList[d], DistancesOld[d])
-				}
-			*/
-
 		}
 
 		//Adding the amount of new neighbors found to the total amount of new neighbors found in this iteration

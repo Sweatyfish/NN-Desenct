@@ -146,6 +146,52 @@ func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
 	return SampledSet
 }
 
+func getWorstNeighborInfo(vertex int) neighborInfo{
+	var worstN neighborInfo
+	for i := vertex*graph.K; i < (vertex+1)*graph.K; i++{
+		if graph.Distances[i] > worstN.distance {
+			worstN.distance = graph.Distances[i]
+			worstN.id = graph.NeighborsID[i].Id
+			worstN.index = i
+		}
+	}
+	return worstN
+}
+
+//Returns int for counter and the new wors neigbor, if no neighbor was replaced the new worst neighbor is still the same
+func insert(v1Id, v2Id int, nInfo neighborInfo, distance float32) (int, neighborInfo) {
+	var secondWorst neighborInfo
+	
+	for i := v1Id*graph.K; i < (v1Id+1)*graph.K; i++{
+		// If vertex is already a neigbor
+		if v2Id == graph.NeighborsID[i].Id{
+			return 0, nInfo
+		}
+		// Update secondWorse such that we can return the new worst neigbor
+		if secondWorst.distance < graph.Distances[i] && nInfo.id != graph.NeighborsID[i].Id{
+			secondWorst.distance = graph.Distances[i]
+			secondWorst.id = graph.NeighborsID[i].Id
+			secondWorst.index = i
+		}
+	}
+	// if secondWorst.distance is less than distance between v1 and v2 (newly replaced) then set that
+	// To be the new new worst neigbor
+	if secondWorst.distance < distance{
+		secondWorst.id = v2Id
+		secondWorst.distance = distance
+		secondWorst.index = nInfo.index
+	}
+
+	graph.Locks[v1Id].Lock()
+	graph.NeighborsID[nInfo.index] = NeighborTuple{isNew: true, Id: v2Id}
+	graph.Distances[nInfo.index] = nInfo.distance
+	graph.Locks[v1Id].Unlock()
+	removeReverseNeighbor(v1Id,nInfo.id)
+	InsertNewReverseNeighbor(v1Id, v2Id)
+
+	return 1, secondWorst
+}
+
 func tryInsert(Vert1 int, Vertex2 int, distance float32) int {
 	Vertex1 := Vert1
 	if Vertex1 == Vertex2 {
