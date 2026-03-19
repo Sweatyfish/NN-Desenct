@@ -12,12 +12,12 @@ import (
 )
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var k = 2
-var n = 10
+var k = 10
+var n = 10000
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
-var benchmarking = true
+var benchmarking = false
 var timeMeasure = false
 
 /* amount of verticies each lock resides over */
@@ -127,6 +127,7 @@ func NNDecent(c chan int) {
 
 		for i := 0; i < len(newNeighboursList); i++ {
 			worstPrimary = getWorstNeighborInfo(newNeighboursList[i])
+			// fmt.Println(worstPrimary.distance)
 			for j := i + 1; j < len(newNeighboursList); j++ {
 				dist := NxNMatrix[idx1]
 				worstSecondary = getWorstNeighborInfo(newNeighboursList[j])
@@ -136,7 +137,7 @@ func NNDecent(c chan int) {
 					addToNewNeighbours += added
 				}
 				if worstSecondary.distance > dist{
-					added, _ = insert(newNeighboursList[j],newNeighboursList[i],worstPrimary,dist)
+					added, _ = insert(newNeighboursList[j],newNeighboursList[i],worstSecondary,dist)
 					addToNewNeighbours += added
 				}
 				idx1++

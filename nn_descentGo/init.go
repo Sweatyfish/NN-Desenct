@@ -64,7 +64,6 @@ func initGraph(N, D, K int) Graph {
 		emptyFreeze := make([]int, 0)
 		graph.FreezeReverseNeighbors[i].Store(&emptyFreeze)
 	}
-
 	// Initialize neighbors and distances
 	for I := 0; I < N; I++ {
 		IdList := getKRandomNumbers(N, K, I)

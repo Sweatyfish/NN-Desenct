@@ -33,10 +33,9 @@ func euclideanDistance(vec1, vec2 []float32) float32 {
 func CosineDistance(Vertex1, Vertex2 []float32) float32 {
 	var dot float32
 
-	for i := 0; i < graph.Dim; i++ {
+	for i := 0; i < len(Vertex1); i++ {
 		dot += Vertex1[i] * Vertex2[i]
 	}
-
 	return 1 - dot
 }
 
@@ -149,6 +148,7 @@ func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
 func getWorstNeighborInfo(vertex int) neighborInfo{
 	var worstN neighborInfo
 	for i := vertex*graph.K; i < (vertex+1)*graph.K; i++{
+		// fmt.Println("Graph.distances[i] ", graph.Distances[i], " WorstN ", worstN.distance)
 		if graph.Distances[i] > worstN.distance {
 			worstN.distance = graph.Distances[i]
 			worstN.id = graph.NeighborsID[i].Id
@@ -161,7 +161,9 @@ func getWorstNeighborInfo(vertex int) neighborInfo{
 //Returns int for counter and the new wors neigbor, if no neighbor was replaced the new worst neighbor is still the same
 func insert(v1Id, v2Id int, nInfo neighborInfo, distance float32) (int, neighborInfo) {
 	var secondWorst neighborInfo
-	
+	// fmt.Println("Looking at vertex ", v1Id, " and ", v2Id)
+	// fmt.Println("ninfo.distnace ", nInfo.distance)
+	// fmt.Println("distance AKA between v1 and v2 ", distance)
 	for i := v1Id*graph.K; i < (v1Id+1)*graph.K; i++{
 		// If vertex is already a neigbor
 		if v2Id == graph.NeighborsID[i].Id{
