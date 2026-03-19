@@ -40,16 +40,47 @@ func CosineDistance(Vertex1, Vertex2 []float32) float32 {
 	return 1 - dot
 }
 
-func CosineDistanceBatch(NeighbourList []int) []float32 {
+func CosineDistanceBatchN(NeighbourList []int) []float32 {
 	dim := 384
 	n := len(NeighbourList)
 	out := make([]float32, n*(n-1)/2)
 	idx := 0
-	for i := 0; i < len(NeighbourList); i++ {
+	for i := 0; i < n; i++ {
 		offseta := dim * NeighbourList[i]
 		a := graph.Data[offseta : offseta+dim]
-		for j := i + 1; j < len(NeighbourList); j++ {
+		for j := i + 1; j < n; j++ {
 			offsetb := dim * NeighbourList[j]
+			b := graph.Data[offsetb : offsetb+dim]
+			var sum float32
+			for l := 0; l < dim; l += 8 {
+				sum +=
+					a[l+0]*b[l+0] +
+						a[l+1]*b[l+1] +
+						a[l+2]*b[l+2] +
+						a[l+3]*b[l+3] +
+						a[l+4]*b[l+4] +
+						a[l+5]*b[l+5] +
+						a[l+6]*b[l+6] +
+						a[l+7]*b[l+7]
+			}
+			out[idx] = 1 - sum
+			idx++
+		}
+	}
+	return out
+}
+
+func CosineDistanceBatchNM(NewNeighbourlist []int, OldNeighbour []int) []float32 {
+	dim := 384
+	n := len(NewNeighbourlist)
+	m := len(OldNeighbour)
+	out := make([]float32, n*m)
+	idx := 0
+	for i := 0; i < n; i++ {
+		offseta := dim * NewNeighbourlist[i]
+		a := graph.Data[offseta : offseta+dim]
+		for j := 0; j < m; j++ {
+			offsetb := dim * OldNeighbour[j]
 			b := graph.Data[offsetb : offsetb+dim]
 			var sum float32
 
@@ -115,7 +146,8 @@ func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
 	return SampledSet
 }
 
-func tryInsert(Vertex1, Vertex2 int, distance float32) int {
+func tryInsert(Vert1 int, Vertex2 int, distance float32) int {
+	Vertex1 := Vert1
 	if Vertex1 == Vertex2 {
 		return 0
 	}

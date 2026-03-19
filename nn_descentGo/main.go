@@ -12,12 +12,12 @@ import (
 )
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var k = 15
-var n = 10000
+var k = 8
+var n = 4000
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
-var benchmarking = false
+var benchmarking = true
 var timeMeasure = false
 
 /* amount of verticies each lock resides over */
@@ -106,13 +106,20 @@ func NNDecent(c chan int) {
 		//The same for the reverse neighbors
 		//This (!IMPORTANT!) This is SUBOPTIMAL, but currently i dont now of a better way to do this, since no thread has the full picture of which are new or old reverse neighbors
 		//The main loop checking neighbors neighbors against each other
-		DistancesNew := CosineDistanceBatch(newNeighboursList)
-		idx := 0
+		NxNMatrix := CosineDistanceBatchN(newNeighboursList)
+		NxOMatrix := CosineDistanceBatchNM(newNeighboursList, oldNeighboursList)
+		idx1 := 0
+		idx2 := 0
 		for i := 0; i < len(newNeighboursList); i++ {
 
 			for j := i + 1; j < len(newNeighboursList); j++ {
-				addToNewNeighbours += tryInsert(newNeighboursList[i], newNeighboursList[j], DistancesNew[idx])
-				idx++
+				addToNewNeighbours += tryInsert(newNeighboursList[i], newNeighboursList[j], NxNMatrix[idx1])
+				idx1++
+
+			}
+			for j := 0; j < len(oldNeighboursList); j++ {
+				addToNewNeighbours += tryInsert(newNeighboursList[i], oldNeighboursList[j], NxOMatrix[idx2])
+				idx2++
 
 			}
 
@@ -138,11 +145,6 @@ func NNDecent(c chan int) {
 					addToNewNeighbours += tryInsert(newNeighboursList[i], oldNeighboursList[d], DistancesOld[d])
 				}
 			*/
-
-			for j := 0; j < len(oldNeighboursList); j++ {
-				distance := CosineDistance(getVertex(newNeighboursList[i]), getVertex(oldNeighboursList[j]))
-				addToNewNeighbours += tryInsert(newNeighboursList[i], oldNeighboursList[j], distance)
-			}
 
 		}
 
