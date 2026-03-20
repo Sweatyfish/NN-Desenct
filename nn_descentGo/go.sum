@@ -2,5 +2,8 @@ github.com/deckarep/golang-set/v2 v2.8.0 h1:swm0rlPCmdWn9mESxKOjWk8hXSqoxOp+Zlfu
 github.com/deckarep/golang-set/v2 v2.8.0/go.mod h1:VAky9rY/yGXJOLEDv3OMci+7wtDpOF4IN+y82NBOac4=
 github.com/sbinet/go-hdf5 v0.0.0-20170101193951-f747bbf37277 h1:+nB9Qrh+hXBW1jIYTNinR6QbKZ/SDJ9UlEfDmLsZFnU=
 github.com/sbinet/go-hdf5 v0.0.0-20170101193951-f747bbf37277/go.mod h1:lAllWC8yd0QD2mpf1TPezt4w9Ai0b4K1t538G4mnoT4=
+gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
+gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
 gonum.org/v1/hdf5 v0.0.0-20210714002203-8c5d23bc6946 h1:vJpL69PeUullhJyKtTjHjENEmZU3BkO4e+fod7nKzgM=
 gonum.org/v1/hdf5 v0.0.0-20210714002203-8c5d23bc6946/go.mod h1:BQUWDHIAygjdt1HnUPQ0eWqLN2n5FwJycrpYUVUOx2I=
+gonum.org/v1/netlib v0.0.0-20230729102104-8b8060e7531f/go.mod h1:6Mn9FPbBqhIzqrUWsq8EvvqYKz+jYS3YDMufWRE6j8c=

@@ -64,7 +64,6 @@ func initGraph(N, D, K int) Graph {
 		emptyFreeze := make([]int, 0)
 		graph.FreezeReverseNeighbors[i].Store(&emptyFreeze)
 	}
-
 	// Initialize neighbors and distances
 	for I := 0; I < N; I++ {
 		IdList := getKRandomNumbers(N, K, I)
@@ -75,7 +74,7 @@ func initGraph(N, D, K int) Graph {
 
 			// Set neighbor
 			graph.NeighborsID[I*K+J] = NeighborTuple{isNew: true, Id: IdList[J]}
-			graph.Distances[I*K+J] = euclideanDistance(
+			graph.Distances[I*K+J] = CosineDistance(
 				graph.Data[I*D:(I+1)*D],
 				graph.Data[IdList[J]*D:(IdList[J]+1)*D],
 			)

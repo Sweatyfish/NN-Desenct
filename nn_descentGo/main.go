@@ -13,11 +13,11 @@ import (
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
 var k = 15
-var n = 20000
+var n = 5000
 var delta = 0.001
-var numThreads = 4
+var numThreads = 8
 var rho float32 = 0.5
-var benchmarking = false
+var benchmarking = true
 var timeMeasure = false
 
 /* amount of verticies each lock resides over */
@@ -49,6 +49,12 @@ var (
 	counter     int
 )
 
+type neighborInfo struct {
+	id       int
+	distance float32
+	index    int
+}
+
 func NNDecent(c chan int) {
 	//Instantiate the sets of old and new neighbors
 	oldNeighbors := mapset.NewSet[int]()
@@ -65,7 +71,7 @@ func NNDecent(c chan int) {
 		oldPrime.Clear()
 		newPrime.Clear()
 		//This will add up to be the amount of new neighbors this iteration on this vertex found
-		addToNewNeighbors := 0
+		addToNewNeighbours := 0
 
 		/*We go through all the neighbours and check whether they are new or old neighbours */
 		for _, neighbor := range getNeighbor(V) {
@@ -94,9 +100,8 @@ func NNDecent(c chan int) {
 		//Union operations on the 4 sets with sampling, also making them into a slice
 		newNeighbors = newNeighbors.Union(sampleKRandomNeighbors(newPrime, rho))
 		oldNeighbors = oldNeighbors.Union(sampleKRandomNeighbors(oldPrime, rho))
-		newNeighborsList := newNeighbors.ToSlice()
-		oldNeighborsList := oldNeighbors.ToSlice()
-
+		newNeighboursList := newNeighbors.ToSlice()
+		oldNeighboursList := oldNeighbors.ToSlice()
 		//Set all current neighbors and reverse neighbors to old neighbors for the next iteration needs to be done before we begin changing neighbors
 		neighbors := getNeighbor(V)
 		for i := range neighbors {
@@ -106,21 +111,53 @@ func NNDecent(c chan int) {
 		//The same for the reverse neighbors
 		//This (!IMPORTANT!) This is SUBOPTIMAL, but currently i dont now of a better way to do this, since no thread has the full picture of which are new or old reverse neighbors
 		//The main loop checking neighbors neighbors against each other
-		for i := 0; i < len(newNeighborsList); i++ {
+		NxNMatrix := CosineDistanceBatchN(newNeighboursList)
+		NxOMatrix := CosineDistanceBatchNM(newNeighboursList, oldNeighboursList)
 
-			for j := i + 1; j < len(newNeighborsList); j++ {
-				distance := euclideanDistance(getVertex(newNeighborsList[i]), getVertex(newNeighborsList[j]))
-				//println("Distance between", newneighbourslist[i], "and", newneighbourslist[j], "is", distance)
-				addToNewNeighbors += tryInsert(newNeighborsList[i], newNeighborsList[j], distance)
+		// Indexes
+		idx1 := 0
+		idx2 := 0
+		added := 0
+
+		// This is the distance from i to it's worst neigbour
+		//var worstPrimary neighborInfo
+		var worstPrimaryList []neighborInfo
+		// This is the distance from j to it's worst neigbour
+		//var worstSecondary neighborInfo
+		newNlen := len(newNeighboursList)
+		oldNlen := len(oldNeighboursList)
+		worstPrimaryList = getWorstNeighborInfoBatch(newNeighboursList)
+		for i := 0; i < newNlen; i++ {
+			//worstPrimary = getWorstNeighborInfo(newNeighboursList[i])
+			// fmt.Println(worstPrimary.distance)
+			for j := i + 1; j < newNlen; j++ {
+				//worstSecondary = getWorstNeighborInfo(newNeighboursList[i])
+				dist := NxNMatrix[idx1]
+				// If the worst neigbour for i is worse than the neigbour we are checking with replace that neigbour
+				if worstPrimaryList[i].distance > dist {
+					added, worstPrimaryList[i] = insert(newNeighboursList[i], newNeighboursList[j], worstPrimaryList[i], dist)
+					addToNewNeighbours += added
+				}
+				if worstPrimaryList[j].distance > dist {
+					added, worstPrimaryList[j] = insert(newNeighboursList[j], newNeighboursList[i], worstPrimaryList[j], dist)
+					addToNewNeighbours += added
+				}
+				idx1++
+
 			}
-			for j := 0; j < len(oldNeighborsList); j++ {
-				distance := euclideanDistance(getVertex(newNeighborsList[i]), getVertex(oldNeighborsList[j]))
-				addToNewNeighbors += tryInsert(newNeighborsList[i], oldNeighborsList[j], distance)
+			for j := 0; j < oldNlen; j++ {
+				dist := NxOMatrix[idx2]
+				idx2++
+				if worstPrimaryList[i].distance > dist {
+					added, worstPrimaryList[i] = insert(newNeighboursList[i], oldNeighboursList[j], worstPrimaryList[i], dist)
+					addToNewNeighbours += added
+				}
 			}
 		}
+
 		//Adding the amount of new neighbors found to the total amount of new neighbors found in this iteration
 		newNeighborsLock.Lock()
-		newNeighborsFound += addToNewNeighbors
+		newNeighborsFound += addToNewNeighbours
 		newNeighborsLock.Unlock()
 
 		//Adding a finished vertex to the counter lock
@@ -132,15 +169,15 @@ func NNDecent(c chan int) {
 
 func main() {
 	// Start CPU profiling
-    f, err := os.Create("cpu.prof")
-    if err != nil {
-        panic(err)
-    }
-    pprof.StartCPUProfile(f)
-    defer func() {
-        pprof.StopCPUProfile()
-        f.Close()
-    }()
+	f, err := os.Create("cpu.prof")
+	if err != nil {
+		panic(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer func() {
+		pprof.StopCPUProfile()
+		f.Close()
+	}()
 	graph = initGraph(n, 384, k)
 	//Instastiate to -1 for entering the first loop
 	newNeighborsFound = -1
@@ -156,7 +193,7 @@ func main() {
 	totalTimeStart := time.Now()
 	for float64(newNeighborsFound) > delta*float64(k)*float64(n) || newNeighborsFound == -1 {
 		fmt.Println("Iteration number:", iterations)
-		
+
 		newNeighborsLock.Lock()
 		newNeighborsFound = 0
 		newNeighborsLock.Unlock()

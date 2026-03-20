@@ -1,32 +1,41 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+)
 
 // this function is used to benchmark the accuracy based on the graph it recieves from main
 // this could also easily be multi-threaded but it would need structural changes in main "Rasmus" I might add this if necessary
 func benchmark(graph Graph) float32 {
-	totalCorrect := 0
-	totalPossible := graph.N * graph.K
+    totalCorrect := int64(0)
+    totalPossible := graph.N * graph.K
 
-	for i := 0; i < graph.N; i++ {
-		foundNN := graph.NeighborsID[i*graph.K : (i+1)*graph.K]
-		trueNN := getTrueNN(i)
-
-		for _, neighbor := range foundNN {
-			for _, trueNeighbor := range trueNN {
-				if neighbor.Id == trueNeighbor {
-					totalCorrect++
-					break
-				}
-			}
-		}
-		if (i%1000 == 0){
-			fmt.Println(i,"/",graph.N)
-		}
-	}
-
-	accuracy := float32(totalCorrect) / float32(totalPossible) * 100
-	return accuracy
+    var wg sync.WaitGroup
+    for i := 0; i < graph.N; i++ {
+        wg.Add(1)
+        go func(i int) {
+            defer wg.Done()
+            foundNN := graph.NeighborsID[i*graph.K : (i+1)*graph.K]
+            trueNN := getTrueNN(i)
+            correct := 0
+            for _, neighbor := range foundNN {
+                for _, trueNeighbor := range trueNN {
+                    if neighbor.Id == trueNeighbor {
+                        correct++
+                        break
+                    }
+                }
+            }
+            atomic.AddInt64(&totalCorrect, int64(correct))
+        }(i)
+        if i%1000 == 0 {
+            fmt.Println(i, "/", graph.N)
+        }
+    }
+    wg.Wait()
+    return float32(totalCorrect) / float32(totalPossible) * 100
 }
 
 func getTrueNN(vertex int) []int {
