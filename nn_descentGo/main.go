@@ -12,12 +12,12 @@ import (
 )
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var k = 10
-var n = 20000
+var k = 15
+var n = 100000
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
-var benchmarking = true
+var benchmarking = false
 var timeMeasure = false
 
 /* amount of verticies each lock resides over */
@@ -122,23 +122,22 @@ func NNDecent(c chan int) {
 		// This is the distance from i to it's worst neigbor
 		var worstPrimary neighborInfo
 		// This is the distance from j to it's worst neigbor
-		var worstSecondary neighborInfo
 
 		for i := 0; i < len(newNeighboursList); i++ {
 			worstPrimary = getWorstNeighborInfo(newNeighboursList[i])
 			// fmt.Println(worstPrimary.distance)
 			for j := i + 1; j < len(newNeighboursList); j++ {
+
 				dist := NxNMatrix[idx1]
-				worstSecondary = getWorstNeighborInfo(newNeighboursList[j])
 				// If the worst neigbor for i is worse than the neigbor we are checking with replace that neigbor
 				if worstPrimary.distance > dist {
 					added, worstPrimary = insert(newNeighboursList[i], newNeighboursList[j], worstPrimary, dist)
 					addToNewNeighbours += added
 				}
-				if worstSecondary.distance > dist {
-					added, _ = insert(newNeighboursList[j], newNeighboursList[i], worstSecondary, dist)
-					addToNewNeighbours += added
-				}
+
+				added = insertNoreturn(newNeighboursList[j], newNeighboursList[i], dist)
+				addToNewNeighbours += added
+
 				idx1++
 
 			}

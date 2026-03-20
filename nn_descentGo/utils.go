@@ -196,6 +196,38 @@ func insert(v1Id, v2Id int, nInfo neighborInfo, distance float32) (int, neighbor
 
 	return 1, secondWorst
 }
+func insertNoreturn(v1Id, v2Id int, distance float32) int {
+	if v1Id == v2Id {
+		return 0
+	}
+	var Worst neighborInfo
+	// fmt.Println("Looking at vertex ", v1Id, " and ", v2Id)
+	// fmt.Println("ninfo.distnace ", nInfo.distance)
+	// fmt.Println("distance AKA between v1 and v2 ", distance)
+	for i := v1Id * graph.K; i < (v1Id+1)*graph.K; i++ {
+		// If vertex is already a neigbor
+		if v2Id == graph.NeighborsID[i].Id {
+			return 0
+		}
+		// Update secondWorse such that we can return the new worst neigbor
+		if Worst.distance < graph.Distances[i] {
+			Worst.distance = graph.Distances[i]
+			Worst.id = graph.NeighborsID[i].Id
+			Worst.index = i
+		}
+	}
+	if Worst.distance > distance {
+		graph.Locks[v1Id].Lock()
+		graph.NeighborsID[Worst.index] = NeighborTuple{isNew: true, Id: v2Id}
+		graph.Distances[Worst.index] = distance
+		graph.Locks[v1Id].Unlock()
+		removeReverseNeighbor(v1Id, Worst.id)
+		InsertNewReverseNeighbor(v1Id, v2Id)
+		return 1
+	}
+	return 0
+
+}
 
 func tryInsert(Vert1 int, Vertex2 int, distance float32) int {
 	Vertex1 := Vert1
