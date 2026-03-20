@@ -13,7 +13,7 @@ import (
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
 var k = 10
-var n = 4000
+var n = 20000
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
