@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
 	"sync/atomic"
@@ -12,12 +13,13 @@ import (
 )
 
 var k = 15
-var n = 5000
+var n = 500000
 var delta = 0.001
-var numThreads = 8
+var numThreads = 16
 var rho float32 = 0.5
-var benchmarking = true
+var benchmarking = false
 var timeMeasure = false
+var checkMemory = true
 
 // NeighborTuple is packed into a single int32 to save memory.
 // Negative value = new neighbor, positive = old neighbor.
@@ -236,5 +238,15 @@ func main() {
 	end := time.Now()
 	if timeMeasure {
 		fmt.Println("Time taken to benchmark:", end.Sub(start))
+	}
+	if checkMemory {
+		f, err := os.Create("mem.prof")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		runtime.GC() // important: get up-to-date heap
+		pprof.WriteHeapProfile(f)
 	}
 }
