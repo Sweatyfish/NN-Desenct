@@ -157,6 +157,29 @@ func getWorstNeighborInfo(vertex int) neighborInfo {
 	}
 	return worstN
 }
+func getWorstNeighborInfoBatch(VertexList []int) []neighborInfo {
+	worstNList := make([]neighborInfo, len(VertexList))
+	for i, v := range VertexList {
+		graph.Locks[v].Lock()
+
+		start := v * graph.K
+		end := (v + 1) * graph.K
+
+		var worst neighborInfo
+		for j := start; j < end; j++ {
+			if graph.Distances[j] > worst.distance {
+				worst.distance = graph.Distances[j]
+				worst.id = graph.NeighborsID[j].Id
+				worst.index = j
+			}
+		}
+
+		graph.Locks[v].Unlock()
+		worstNList[i] = worst
+	}
+
+	return worstNList
+}
 
 // Returns int for counter and the new wors neigbor, if no neighbor was replaced the new worst neighbor is still the same
 func insert(v1Id, v2Id int, nInfo neighborInfo, distance float32) (int, neighborInfo) {

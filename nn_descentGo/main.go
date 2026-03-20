@@ -13,11 +13,11 @@ import (
 
 /* amount of neighbors to be considered for each point, can be changed to any number you want*/
 var k = 15
-var n = 100000
+var n = 5000
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
-var benchmarking = false
+var benchmarking = true
 var timeMeasure = false
 
 /* amount of verticies each lock resides over */
@@ -119,33 +119,37 @@ func NNDecent(c chan int) {
 		idx2 := 0
 		added := 0
 
-		// This is the distance from i to it's worst neigbor
-		var worstPrimary neighborInfo
-		// This is the distance from j to it's worst neigbor
-
-		for i := 0; i < len(newNeighboursList); i++ {
-			worstPrimary = getWorstNeighborInfo(newNeighboursList[i])
+		// This is the distance from i to it's worst neigbour
+		//var worstPrimary neighborInfo
+		var worstPrimaryList []neighborInfo
+		// This is the distance from j to it's worst neigbour
+		//var worstSecondary neighborInfo
+		newNlen := len(newNeighboursList)
+		oldNlen := len(oldNeighboursList)
+		worstPrimaryList = getWorstNeighborInfoBatch(newNeighboursList)
+		for i := 0; i < newNlen; i++ {
+			//worstPrimary = getWorstNeighborInfo(newNeighboursList[i])
 			// fmt.Println(worstPrimary.distance)
-			for j := i + 1; j < len(newNeighboursList); j++ {
-
+			for j := i + 1; j < newNlen; j++ {
+				//worstSecondary = getWorstNeighborInfo(newNeighboursList[i])
 				dist := NxNMatrix[idx1]
-				// If the worst neigbor for i is worse than the neigbor we are checking with replace that neigbor
-				if worstPrimary.distance > dist {
-					added, worstPrimary = insert(newNeighboursList[i], newNeighboursList[j], worstPrimary, dist)
+				// If the worst neigbour for i is worse than the neigbour we are checking with replace that neigbour
+				if worstPrimaryList[i].distance > dist {
+					added, worstPrimaryList[i] = insert(newNeighboursList[i], newNeighboursList[j], worstPrimaryList[i], dist)
 					addToNewNeighbours += added
 				}
-
-				added = insertNoreturn(newNeighboursList[j], newNeighboursList[i], dist)
-				addToNewNeighbours += added
-
+				if worstPrimaryList[j].distance > dist {
+					added, worstPrimaryList[j] = insert(newNeighboursList[j], newNeighboursList[i], worstPrimaryList[j], dist)
+					addToNewNeighbours += added
+				}
 				idx1++
 
 			}
-			for j := 0; j < len(oldNeighboursList); j++ {
+			for j := 0; j < oldNlen; j++ {
 				dist := NxOMatrix[idx2]
 				idx2++
-				if worstPrimary.distance > dist {
-					added, worstPrimary = insert(newNeighboursList[i], oldNeighboursList[j], worstPrimary, dist)
+				if worstPrimaryList[i].distance > dist {
+					added, worstPrimaryList[i] = insert(newNeighboursList[i], oldNeighboursList[j], worstPrimaryList[i], dist)
 					addToNewNeighbours += added
 				}
 			}
