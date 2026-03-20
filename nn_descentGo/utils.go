@@ -145,9 +145,9 @@ func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
 	return SampledSet
 }
 
-func getWorstNeighborInfo(vertex int) neighborInfo{
+func getWorstNeighborInfo(vertex int) neighborInfo {
 	var worstN neighborInfo
-	for i := vertex*graph.K; i < (vertex+1)*graph.K; i++{
+	for i := vertex * graph.K; i < (vertex+1)*graph.K; i++ {
 		// fmt.Println("Graph.distances[i] ", graph.Distances[i], " WorstN ", worstN.distance)
 		if graph.Distances[i] > worstN.distance {
 			worstN.distance = graph.Distances[i]
@@ -158,19 +158,22 @@ func getWorstNeighborInfo(vertex int) neighborInfo{
 	return worstN
 }
 
-//Returns int for counter and the new wors neigbor, if no neighbor was replaced the new worst neighbor is still the same
+// Returns int for counter and the new wors neigbor, if no neighbor was replaced the new worst neighbor is still the same
 func insert(v1Id, v2Id int, nInfo neighborInfo, distance float32) (int, neighborInfo) {
+	if v1Id == v2Id {
+		return 0, nInfo
+	}
 	var secondWorst neighborInfo
 	// fmt.Println("Looking at vertex ", v1Id, " and ", v2Id)
 	// fmt.Println("ninfo.distnace ", nInfo.distance)
 	// fmt.Println("distance AKA between v1 and v2 ", distance)
-	for i := v1Id*graph.K; i < (v1Id+1)*graph.K; i++{
+	for i := v1Id * graph.K; i < (v1Id+1)*graph.K; i++ {
 		// If vertex is already a neigbor
-		if v2Id == graph.NeighborsID[i].Id{
+		if v2Id == graph.NeighborsID[i].Id {
 			return 0, nInfo
 		}
 		// Update secondWorse such that we can return the new worst neigbor
-		if secondWorst.distance < graph.Distances[i] && nInfo.id != graph.NeighborsID[i].Id{
+		if secondWorst.distance < graph.Distances[i] && nInfo.id != graph.NeighborsID[i].Id {
 			secondWorst.distance = graph.Distances[i]
 			secondWorst.id = graph.NeighborsID[i].Id
 			secondWorst.index = i
@@ -178,7 +181,7 @@ func insert(v1Id, v2Id int, nInfo neighborInfo, distance float32) (int, neighbor
 	}
 	// if secondWorst.distance is less than distance between v1 and v2 (newly replaced) then set that
 	// To be the new new worst neigbor
-	if secondWorst.distance < distance{
+	if secondWorst.distance < distance {
 		secondWorst.id = v2Id
 		secondWorst.distance = distance
 		secondWorst.index = nInfo.index
@@ -188,7 +191,7 @@ func insert(v1Id, v2Id int, nInfo neighborInfo, distance float32) (int, neighbor
 	graph.NeighborsID[nInfo.index] = NeighborTuple{isNew: true, Id: v2Id}
 	graph.Distances[nInfo.index] = distance
 	graph.Locks[v1Id].Unlock()
-	removeReverseNeighbor(v1Id,nInfo.id)
+	removeReverseNeighbor(v1Id, nInfo.id)
 	InsertNewReverseNeighbor(v1Id, v2Id)
 
 	return 1, secondWorst

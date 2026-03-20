@@ -131,20 +131,24 @@ func NNDecent(c chan int) {
 				dist := NxNMatrix[idx1]
 				worstSecondary = getWorstNeighborInfo(newNeighboursList[j])
 				// If the worst neigbor for i is worse than the neigbor we are checking with replace that neigbor
-				if worstPrimary.distance > dist{
-					added, worstPrimary = insert(newNeighboursList[i],newNeighboursList[j],worstPrimary,dist)
+				if worstPrimary.distance > dist {
+					added, worstPrimary = insert(newNeighboursList[i], newNeighboursList[j], worstPrimary, dist)
 					addToNewNeighbours += added
 				}
-				if worstSecondary.distance > dist{
-					added, _ = insert(newNeighboursList[j],newNeighboursList[i],worstSecondary,dist)
+				if worstSecondary.distance > dist {
+					added, _ = insert(newNeighboursList[j], newNeighboursList[i], worstSecondary, dist)
 					addToNewNeighbours += added
 				}
 				idx1++
-				
+
 			}
 			for j := 0; j < len(oldNeighboursList); j++ {
-				addToNewNeighbours += tryInsert(newNeighboursList[i], oldNeighboursList[j], NxOMatrix[idx2])
+				dist := NxOMatrix[idx2]
 				idx2++
+				if worstPrimary.distance > dist {
+					added, worstPrimary = insert(newNeighboursList[i], oldNeighboursList[j], worstPrimary, dist)
+					addToNewNeighbours += added
+				}
 			}
 		}
 
