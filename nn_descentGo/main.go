@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
 	"sync/atomic"
@@ -11,20 +12,21 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 )
 
-var k = 15
-var n = 5000
+var k = int32(15)
+var n = int32(3000000)
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
-var benchmarking = true
+var benchmarking = false
 var timeMeasure = false
+var checkMemory = false
 
 // NeighborTuple is packed into a single int32 to save memory.
 // Negative value = new neighbor, positive = old neighbor.
 // ID is stored as abs(value). 0 is reserved, so IDs are 1-indexed internally.
 type NeighborTuple = int32
 
-func makeNeighbor(id int, isNew bool) NeighborTuple {
+func makeNeighbor(id int32, isNew bool) NeighborTuple {
 	if isNew {
 		return -int32(id + 1)
 	}
@@ -35,11 +37,11 @@ func neighborIsNew(t NeighborTuple) bool {
 	return t < 0
 }
 
-func neighborID(t NeighborTuple) int {
+func neighborID(t NeighborTuple) int32 {
 	if t < 0 {
-		return int(-t) - 1
+		return int32(-t) - 1
 	}
-	return int(t) - 1
+	return int32(t) - 1
 }
 
 func setOld(t *NeighborTuple) {
@@ -49,10 +51,10 @@ func setOld(t *NeighborTuple) {
 }
 
 type Graph struct {
-	N, K, Dim        int
+	N, K, Dim        int32
 	Data             []float32
 	NeighborsID      []NeighborTuple
-	ReverseNeighbors []atomic.Pointer[[]int]
+	ReverseNeighbors []atomic.Pointer[[]int32]
 	Distances        []float32
 	Locks            []sync.Mutex
 }
@@ -60,22 +62,22 @@ type Graph struct {
 var (
 	graph             Graph
 	newNeighborsLock  sync.Mutex
-	newNeighborsFound int
+	newNeighborsFound int32
 	counterLock       sync.Mutex
-	counter           int
+	counter           int32
 )
 
 type neighborInfo struct {
-	id       int
+	id       int32
 	distance float32
-	index    int
+	index    int32
 }
 
-func NNDecent(c chan int) {
-	oldNeighbors := mapset.NewSet[int]()
-	newNeighbors := mapset.NewSet[int]()
-	oldPrime := mapset.NewSet[int]()
-	newPrime := mapset.NewSet[int]()
+func NNDecent(c chan int32) {
+	oldNeighbors := mapset.NewSet[int32]()
+	newNeighbors := mapset.NewSet[int32]()
+	oldPrime := mapset.NewSet[int32]()
+	newPrime := mapset.NewSet[int32]()
 
 	for true {
 		V := <-c
@@ -83,7 +85,7 @@ func NNDecent(c chan int) {
 		newNeighbors.Clear()
 		oldPrime.Clear()
 		newPrime.Clear()
-		addToNewNeighbours := 0
+		addToNewNeighbours := int32(0)
 
 		for _, neighbor := range getNeighbor(V) {
 			id := neighborID(neighbor)
@@ -120,16 +122,16 @@ func NNDecent(c chan int) {
 		NxNMatrix := CosineDistanceBatchN(newNeighboursList)
 		NxOMatrix := CosineDistanceBatchNM(newNeighboursList, oldNeighboursList)
 
-		idx1 := 0
-		idx2 := 0
-		added := 0
+		idx1 := int32(0)
+		idx2 := int32(0)
+		added := int32(0)
 
 		var worstPrimaryList []neighborInfo
-		newNlen := len(newNeighboursList)
-		oldNlen := len(oldNeighboursList)
+		newNlen := int32(len(newNeighboursList))
+		oldNlen := int32(len(oldNeighboursList))
 		worstPrimaryList = getWorstNeighborInfoBatch(newNeighboursList)
-		for i := 0; i < newNlen; i++ {
-			for j := i + 1; j < newNlen; j++ {
+		for i := int32(0); i < newNlen; i++ {
+			for j := i + int32(1); j < newNlen; j++ {
 				dist := NxNMatrix[idx1]
 				if worstPrimaryList[i].distance > dist {
 					added, worstPrimaryList[i] = insert(newNeighboursList[i], newNeighboursList[j], worstPrimaryList[i], dist)
@@ -141,7 +143,7 @@ func NNDecent(c chan int) {
 				}
 				idx1++
 			}
-			for j := 0; j < oldNlen; j++ {
+			for j := int32(0); j < oldNlen; j++ {
 				dist := NxOMatrix[idx2]
 				idx2++
 				if worstPrimaryList[i].distance > dist {
@@ -172,9 +174,9 @@ func main() {
 		f.Close()
 	}()
 
-	graph = initGraph(n, 384, k)
+	graph = initGraph(n, int32(384), k)
 	newNeighborsFound = -1
-	c := make(chan int)
+	c := make(chan int32)
 	for i := 0; i < numThreads; i++ {
 		go NNDecent(c)
 	}
@@ -189,7 +191,7 @@ func main() {
 		newNeighborsLock.Unlock()
 
 		start := time.Now()
-		for i := 0; i < n; i++ {
+		for i := int32(0); i < n; i++ {
 			c <- i
 		}
 
@@ -226,5 +228,15 @@ func main() {
 	end := time.Now()
 	if timeMeasure {
 		fmt.Println("Time taken to benchmark:", end.Sub(start))
+	}
+	if checkMemory {
+		f, err := os.Create("mem.prof")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		runtime.GC() // important: get up-to-date heap
+		pprof.WriteHeapProfile(f)
 	}
 }

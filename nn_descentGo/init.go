@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 )
 
-func loadNpyFirstN(filename string, n int, D int) ([]float32, error) {
+func loadNpyFirstN(filename string, n int32, D int32) ([]float32, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func loadNpyFirstN(filename string, n int, D int) ([]float32, error) {
 	return data, nil
 }
 
-func initGraph(N, D, K int) Graph {
+func initGraph(N, D, K int32) Graph {
 	fmt.Println("Initializing Graph...")
 	data, err := loadNpyFirstN("../../data/train.npy", N, D)
 	if err != nil {
@@ -40,19 +40,19 @@ func initGraph(N, D, K int) Graph {
 		Dim:              D,
 		Data:             data,
 		NeighborsID:      make([]NeighborTuple, N*K),
-		ReverseNeighbors: make([]atomic.Pointer[[]int], N),
+		ReverseNeighbors: make([]atomic.Pointer[[]int32], N),
 		Distances:        make([]float32, N*K),
 		Locks:            make([]sync.Mutex, N),
 	}
 
-	for i := 0; i < N; i++ {
-		empty := make([]int, 0)
+	for i := int32(0); i < N; i++ {
+		empty := make([]int32, 0)
 		graph.ReverseNeighbors[i].Store(&empty)
 	}
 
-	for I := 0; I < N; I++ {
+	for I := int32(0); I < N; I++ {
 		IdList := getKRandomNumbers(N, K, I)
-		for J := 0; J < K; J++ {
+		for J := int32(0); J < K; J++ {
 			if IdList[J] == I {
 				continue
 			}
