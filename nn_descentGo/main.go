@@ -13,7 +13,7 @@ import (
 )
 
 var k = 15
-var n = 500000
+var n = 5000
 var delta = 0.001
 var numThreads = 16
 var rho float32 = 0.5
