@@ -35,22 +35,19 @@ func initGraph(N, D, K int) Graph {
 	}
 
 	graph := Graph{
-		N:                      N,
-		K:                      K,
-		Dim:                    D,
-		Data:                   data,
-		NeighborsID:            make([]NeighborTuple, N*K),
-		ReverseNeighbors:       make([]atomic.Pointer[[]int], N),
-		Distances:              make([]float32, N*K),
-		Locks:                  make([]sync.Mutex, N),
-		FreezeReverseNeighbors: make([]atomic.Pointer[[]int], N),
+		N:                N,
+		K:                K,
+		Dim:              D,
+		Data:             data,
+		NeighborsID:      make([]NeighborTuple, N*K),
+		ReverseNeighbors: make([]atomic.Pointer[[]int], N),
+		Distances:        make([]float32, N*K),
+		Locks:            make([]sync.Mutex, N),
 	}
 
 	for i := 0; i < N; i++ {
 		empty := make([]int, 0)
 		graph.ReverseNeighbors[i].Store(&empty)
-		emptyFreeze := make([]int, 0)
-		graph.FreezeReverseNeighbors[i].Store(&emptyFreeze)
 	}
 
 	for I := 0; I < N; I++ {
@@ -68,13 +65,6 @@ func initGraph(N, D, K int) Graph {
 			*revPointer = append(*revPointer, I)
 			graph.ReverseNeighbors[IdList[J]].Store(revPointer)
 		}
-	}
-
-	for i := 0; i < N; i++ {
-		ptr := graph.ReverseNeighbors[i].Load()
-		copySlice := make([]int, len(*ptr))
-		copy(copySlice, *ptr)
-		graph.FreezeReverseNeighbors[i].Store(&copySlice)
 	}
 
 	fmt.Println("Graph Initialized")

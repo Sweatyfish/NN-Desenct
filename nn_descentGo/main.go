@@ -49,13 +49,12 @@ func setOld(t *NeighborTuple) {
 }
 
 type Graph struct {
-	N, K, Dim              int
-	Data                   []float32
-	NeighborsID            []NeighborTuple
-	ReverseNeighbors       []atomic.Pointer[[]int]
-	Distances              []float32
-	FreezeReverseNeighbors []atomic.Pointer[[]int]
-	Locks                  []sync.Mutex
+	N, K, Dim        int
+	Data             []float32
+	NeighborsID      []NeighborTuple
+	ReverseNeighbors []atomic.Pointer[[]int]
+	Distances        []float32
+	Locks            []sync.Mutex
 }
 
 var (
@@ -207,15 +206,6 @@ func main() {
 		counter = 0
 		counterLock.Unlock()
 
-		start = time.Now()
-		for i := 0; i < n; i++ {
-			ListToCopy := *graph.FreezeReverseNeighbors[i].Load()
-			newSlice := make([]int, len(ListToCopy))
-			copy(newSlice, ListToCopy)
-			graph.ReverseNeighbors[i].Store(&newSlice)
-		}
-
-		end = time.Now()
 		if timeMeasure {
 			fmt.Println("Time taken to update reverse neighbors:", end.Sub(start))
 		}

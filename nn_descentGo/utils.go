@@ -273,7 +273,7 @@ func tryInsert(Vert1 int, Vertex2 int, distance float32) int {
 
 func removeReverseNeighbor(Vertex1, Vertex2 int) {
 	graph.Locks[Vertex2].Lock()
-	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
+	revPointer := graph.ReverseNeighbors[Vertex2].Load()
 	for i, neighbor := range *revPointer {
 		if neighbor == Vertex1 {
 			(*revPointer)[i] = (*revPointer)[len(*revPointer)-1]
@@ -281,14 +281,14 @@ func removeReverseNeighbor(Vertex1, Vertex2 int) {
 			break
 		}
 	}
-	graph.FreezeReverseNeighbors[Vertex2].Store(revPointer)
+	graph.ReverseNeighbors[Vertex2].Store(revPointer)
 	graph.Locks[Vertex2].Unlock()
 }
 
 func InsertNewReverseNeighbor(Vertex1, Vertex2 int) {
 	graph.Locks[Vertex2].Lock()
-	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
+	revPointer := graph.ReverseNeighbors[Vertex2].Load()
 	*revPointer = append(*revPointer, Vertex1)
-	graph.FreezeReverseNeighbors[Vertex2].Store(revPointer)
+	graph.ReverseNeighbors[Vertex2].Store(revPointer)
 	graph.Locks[Vertex2].Unlock()
 }
