@@ -8,16 +8,16 @@ import (
 )
 
 func getNandDFromFilename(filename string) (int32, int32) {
-	var N, D int32
-	_, err := fmt.Sscanf(filename, "data-N_%d-D_%d.csv", &N, &D)
+	var N, Dimensions int32
+	_, err := fmt.Sscanf(filename, "data-N_%Dimensions-D_%Dimensions.csv", &N, &Dimensions)
 	if err != nil {
 		panic(err)
 	}
-	return N, D
+	return N, Dimensions
 }
 
 func getVertex(V int32) []float32 {
-	return graph.Data[V*graph.Dim : (V+1)*graph.Dim]
+	return graph.Data[V*Dimensions : (V+1)*Dimensions]
 }
 
 func CosineDistance(Vertex1, Vertex2 []float32) float32 {
@@ -29,18 +29,18 @@ func CosineDistance(Vertex1, Vertex2 []float32) float32 {
 }
 
 func CosineDistanceBatchN(NeighbourList []int32) []float32 {
-	dim := int32(384)
+
 	n := len(NeighbourList)
 	out := make([]float32, n*(n-1)/2)
 	idx := 0
 	for i := 0; i < n; i++ {
-		offseta := dim * NeighbourList[i]
-		a := graph.Data[offseta : offseta+dim]
+		offseta := Dimensions * NeighbourList[i]
+		a := graph.Data[offseta : offseta+Dimensions]
 		for j := i + 1; j < n; j++ {
-			offsetb := dim * NeighbourList[j]
-			b := graph.Data[offsetb : offsetb+dim]
+			offsetb := Dimensions * NeighbourList[j]
+			b := graph.Data[offsetb : offsetb+Dimensions]
 			var sum float32
-			for l := int32(0); l < dim; l += 8 {
+			for l := int32(0); l < Dimensions; l += 8 {
 				sum +=
 					a[l+0]*b[l+0] +
 						a[l+1]*b[l+1] +
@@ -59,19 +59,19 @@ func CosineDistanceBatchN(NeighbourList []int32) []float32 {
 }
 
 func CosineDistanceBatchNM(NewNeighbourlist []int32, OldNeighbour []int32) []float32 {
-	dim := int32(384)
+	Dimensions := Dimensions
 	n := len(NewNeighbourlist)
 	m := len(OldNeighbour)
 	out := make([]float32, n*m)
 	idx := 0
 	for i := 0; i < n; i++ {
-		offseta := dim * NewNeighbourlist[i]
-		a := graph.Data[offseta : offseta+dim]
+		offseta := Dimensions * NewNeighbourlist[i]
+		a := graph.Data[offseta : offseta+Dimensions]
 		for j := 0; j < m; j++ {
-			offsetb := dim * OldNeighbour[j]
-			b := graph.Data[offsetb : offsetb+dim]
+			offsetb := Dimensions * OldNeighbour[j]
+			b := graph.Data[offsetb : offsetb+Dimensions]
 			var sum float32
-			for l := int32(0); l < dim; l += 8 {
+			for l := int32(0); l < Dimensions; l += 8 {
 				sum +=
 					a[l+0]*b[l+0] +
 						a[l+1]*b[l+1] +

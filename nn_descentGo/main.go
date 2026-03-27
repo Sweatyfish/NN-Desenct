@@ -13,13 +13,21 @@ import (
 )
 
 var k = int32(15)
-var n = int32(3000000)
+var n = int32(15000)
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
-var benchmarking = false
+var benchmarking = true
 var timeMeasure = false
 var checkMemory = false
+
+// write pca dimensions
+var PCAcase = 2
+
+// 0 = 384 dimension
+// 1 = 320 dimension
+// 2 = 160 dimension
+var Dimensions int32
 
 // NeighborTuple is packed into a single int32 to save memory.
 // Negative value = new neighbor, positive = old neighbor.
@@ -164,6 +172,7 @@ func NNDecent(c chan int32) {
 }
 
 func main() {
+
 	f, err := os.Create("cpu.prof")
 	if err != nil {
 		panic(err)
@@ -173,8 +182,7 @@ func main() {
 		pprof.StopCPUProfile()
 		f.Close()
 	}()
-
-	graph = initGraph(n, int32(384), k)
+	graph = initGraph(n, k)
 	newNeighborsFound = -1
 	c := make(chan int32)
 	for i := 0; i < numThreads; i++ {
@@ -239,4 +247,5 @@ func main() {
 		runtime.GC() // important: get up-to-date heap
 		pprof.WriteHeapProfile(f)
 	}
+
 }
