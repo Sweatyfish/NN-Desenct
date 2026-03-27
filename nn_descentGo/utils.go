@@ -7,51 +7,40 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 )
 
-func getNandDFromFilename(filename string) (int, int) {
-	var N, D int
-	_, err := fmt.Sscanf(filename, "data-N_%d-D_%d.csv", &N, &D)
+func getNandDFromFilename(filename string) (int32, int32) {
+	var N, Dimensions int32
+	_, err := fmt.Sscanf(filename, "data-N_%Dimensions-D_%Dimensions.csv", &N, &Dimensions)
 	if err != nil {
 		panic(err)
 	}
-	return N, D
-}
-func getVertex(V int) []float32 {
-	return graph.Data[V*graph.Dim : (V+1)*graph.Dim]
+	return N, Dimensions
 }
 
-/* Function to calculate the Euclidean distance between two vectors*/
-func euclideanDistance(vec1, vec2 []float32) float32 {
-
-	var total float32 = 0
-	for i := range vec1 {
-		diff := vec1[i] - vec2[i]
-		total += diff * diff
-	}
-	return (float32((float32(total))))
+func getVertex(V int32) []float32 {
+	return graph.Data[V*Dimensions : (V+1)*Dimensions]
 }
 
 func CosineDistance(Vertex1, Vertex2 []float32) float32 {
 	var dot float32
-
 	for i := 0; i < len(Vertex1); i++ {
 		dot += Vertex1[i] * Vertex2[i]
 	}
 	return 1 - dot
 }
 
-func CosineDistanceBatchN(NeighbourList []int) []float32 {
-	dim := 384
+func CosineDistanceBatchN(NeighbourList []int32) []float32 {
+
 	n := len(NeighbourList)
 	out := make([]float32, n*(n-1)/2)
 	idx := 0
 	for i := 0; i < n; i++ {
-		offseta := dim * NeighbourList[i]
-		a := graph.Data[offseta : offseta+dim]
+		offseta := Dimensions * NeighbourList[i]
+		a := graph.Data[offseta : offseta+Dimensions]
 		for j := i + 1; j < n; j++ {
-			offsetb := dim * NeighbourList[j]
-			b := graph.Data[offsetb : offsetb+dim]
+			offsetb := Dimensions * NeighbourList[j]
+			b := graph.Data[offsetb : offsetb+Dimensions]
 			var sum float32
-			for l := 0; l < dim; l += 8 {
+			for l := int32(0); l < Dimensions; l += 16 {
 				sum +=
 					a[l+0]*b[l+0] +
 						a[l+1]*b[l+1] +
@@ -60,8 +49,17 @@ func CosineDistanceBatchN(NeighbourList []int) []float32 {
 						a[l+4]*b[l+4] +
 						a[l+5]*b[l+5] +
 						a[l+6]*b[l+6] +
-						a[l+7]*b[l+7]
+						a[l+7]*b[l+7] +
+						a[l+8]*b[l+8] +
+						a[l+9]*b[l+9] +
+						a[l+10]*b[l+10] +
+						a[l+11]*b[l+11] +
+						a[l+12]*b[l+12] +
+						a[l+13]*b[l+13] +
+						a[l+14]*b[l+14] +
+						a[l+15]*b[l+15]
 			}
+
 			out[idx] = 1 - sum
 			idx++
 		}
@@ -69,21 +67,20 @@ func CosineDistanceBatchN(NeighbourList []int) []float32 {
 	return out
 }
 
-func CosineDistanceBatchNM(NewNeighbourlist []int, OldNeighbour []int) []float32 {
-	dim := 384
+func CosineDistanceBatchNM(NewNeighbourlist []int32, OldNeighbour []int32) []float32 {
+	Dimensions := Dimensions
 	n := len(NewNeighbourlist)
 	m := len(OldNeighbour)
 	out := make([]float32, n*m)
 	idx := 0
 	for i := 0; i < n; i++ {
-		offseta := dim * NewNeighbourlist[i]
-		a := graph.Data[offseta : offseta+dim]
+		offseta := Dimensions * NewNeighbourlist[i]
+		a := graph.Data[offseta : offseta+Dimensions]
 		for j := 0; j < m; j++ {
-			offsetb := dim * OldNeighbour[j]
-			b := graph.Data[offsetb : offsetb+dim]
+			offsetb := Dimensions * OldNeighbour[j]
+			b := graph.Data[offsetb : offsetb+Dimensions]
 			var sum float32
-
-			for l := 0; l < dim; l += 8 {
+			for l := int32(0); l < Dimensions; l += 8 {
 				sum +=
 					a[l+0]*b[l+0] +
 						a[l+1]*b[l+1] +
@@ -94,7 +91,6 @@ func CosineDistanceBatchNM(NewNeighbourlist []int, OldNeighbour []int) []float32
 						a[l+6]*b[l+6] +
 						a[l+7]*b[l+7]
 			}
-
 			out[idx] = 1 - sum
 			idx++
 		}
@@ -102,8 +98,7 @@ func CosineDistanceBatchNM(NewNeighbourlist []int, OldNeighbour []int) []float32
 	return out
 }
 
-/* Helper function to check if a slice contains a specific number*/
-func contains(slice []int, num int) bool {
+func contains(slice []int32, num int32) bool {
 	for _, v := range slice {
 		if v == num {
 			return true
@@ -112,31 +107,30 @@ func contains(slice []int, num int) bool {
 	return false
 }
 
-/* Helper function to get K unique random numbers from 0 to N-1, excluding Alpha*/
-func getKRandomNumbers(N, K, Alpha int) []int {
-	randomNumbers := make([]int, 0, K)
-
-	for len(randomNumbers) < K {
-		num := rand.Intn(N)
+func getKRandomNumbers(N, K, Alpha int32) []int32 {
+	randomNumbers := make([]int32, int32(0), K)
+	for int32(len(randomNumbers)) < K {
+		num := int32(rand.Intn(int(N)))
 		if num != Alpha && !contains(randomNumbers, num) {
 			randomNumbers = append(randomNumbers, num)
 		}
 	}
 	return randomNumbers
 }
-func getNeighbor(V int) []NeighborTuple {
+
+func getNeighbor(V int32) []NeighborTuple {
 	graph.Locks[V].Lock()
 	list := graph.NeighborsID[V*graph.K : (V+1)*graph.K]
 	graph.Locks[V].Unlock()
 	return list
-
 }
 
-func getReverseNeighbor(V int) []int {
+func getReverseNeighbor(V int32) []int32 {
 	return *graph.ReverseNeighbors[V].Load()
 }
-func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
-	SampledSet := mapset.NewSet[int]()
+
+func sampleKRandomNeighbors(Set mapset.Set[int32], rho float32) mapset.Set[int32] {
+	SampledSet := mapset.NewSet[int32]()
 	for neighbor := range Set.Iter() {
 		if rand.Float32() < rho {
 			SampledSet.Add(neighbor)
@@ -145,103 +139,85 @@ func sampleKRandomNeighbors(Set mapset.Set[int], rho float32) mapset.Set[int] {
 	return SampledSet
 }
 
-func getWorstNeighborInfo(vertex int) neighborInfo {
+func getWorstNeighborInfo(vertex int32) neighborInfo {
 	var worstN neighborInfo
 	for i := vertex * graph.K; i < (vertex+1)*graph.K; i++ {
-		// fmt.Println("Graph.distances[i] ", graph.Distances[i], " WorstN ", worstN.distance)
 		if graph.Distances[i] > worstN.distance {
 			worstN.distance = graph.Distances[i]
-			worstN.id = graph.NeighborsID[i].Id
+			worstN.id = neighborID(graph.NeighborsID[i])
 			worstN.index = i
 		}
 	}
 	return worstN
 }
-func getWorstNeighborInfoBatch(VertexList []int) []neighborInfo {
+
+func getWorstNeighborInfoBatch(VertexList []int32) []neighborInfo {
 	worstNList := make([]neighborInfo, len(VertexList))
 	for i, v := range VertexList {
 		graph.Locks[v].Lock()
-
 		start := v * graph.K
 		end := (v + 1) * graph.K
-
 		var worst neighborInfo
 		for j := start; j < end; j++ {
 			if graph.Distances[j] > worst.distance {
 				worst.distance = graph.Distances[j]
-				worst.id = graph.NeighborsID[j].Id
+				worst.id = neighborID(graph.NeighborsID[j])
 				worst.index = j
 			}
 		}
-
 		graph.Locks[v].Unlock()
 		worstNList[i] = worst
 	}
-
 	return worstNList
 }
 
-// Returns int for counter and the new wors neigbor, if no neighbor was replaced the new worst neighbor is still the same
-func insert(v1Id, v2Id int, nInfo neighborInfo, distance float32) (int, neighborInfo) {
+func insert(v1Id, v2Id int32, nInfo neighborInfo, distance float32) (int32, neighborInfo) {
 	if v1Id == v2Id {
 		return 0, nInfo
 	}
 	var secondWorst neighborInfo
-	// fmt.Println("Looking at vertex ", v1Id, " and ", v2Id)
-	// fmt.Println("ninfo.distnace ", nInfo.distance)
-	// fmt.Println("distance AKA between v1 and v2 ", distance)
 	for i := v1Id * graph.K; i < (v1Id+1)*graph.K; i++ {
-		// If vertex is already a neigbor
-		if v2Id == graph.NeighborsID[i].Id {
+		if v2Id == neighborID(graph.NeighborsID[i]) {
 			return 0, nInfo
 		}
-		// Update secondWorse such that we can return the new worst neigbor
-		if secondWorst.distance < graph.Distances[i] && nInfo.id != graph.NeighborsID[i].Id {
+		if secondWorst.distance < graph.Distances[i] && nInfo.id != neighborID(graph.NeighborsID[i]) {
 			secondWorst.distance = graph.Distances[i]
-			secondWorst.id = graph.NeighborsID[i].Id
+			secondWorst.id = neighborID(graph.NeighborsID[i])
 			secondWorst.index = i
 		}
 	}
-	// if secondWorst.distance is less than distance between v1 and v2 (newly replaced) then set that
-	// To be the new new worst neigbor
 	if secondWorst.distance < distance {
 		secondWorst.id = v2Id
 		secondWorst.distance = distance
 		secondWorst.index = nInfo.index
 	}
-
 	graph.Locks[v1Id].Lock()
-	graph.NeighborsID[nInfo.index] = NeighborTuple{isNew: true, Id: v2Id}
+	graph.NeighborsID[nInfo.index] = makeNeighbor(v2Id, true)
 	graph.Distances[nInfo.index] = distance
 	graph.Locks[v1Id].Unlock()
 	removeReverseNeighbor(v1Id, nInfo.id)
 	InsertNewReverseNeighbor(v1Id, v2Id)
-
 	return 1, secondWorst
 }
-func insertNoreturn(v1Id, v2Id int, distance float32) int {
+
+func insertNoreturn(v1Id, v2Id int32, distance float32) int32 {
 	if v1Id == v2Id {
 		return 0
 	}
 	var Worst neighborInfo
-	// fmt.Println("Looking at vertex ", v1Id, " and ", v2Id)
-	// fmt.Println("ninfo.distnace ", nInfo.distance)
-	// fmt.Println("distance AKA between v1 and v2 ", distance)
 	for i := v1Id * graph.K; i < (v1Id+1)*graph.K; i++ {
-		// If vertex is already a neigbor
-		if v2Id == graph.NeighborsID[i].Id {
+		if v2Id == neighborID(graph.NeighborsID[i]) {
 			return 0
 		}
-		// Update secondWorse such that we can return the new worst neigbor
 		if Worst.distance < graph.Distances[i] {
 			Worst.distance = graph.Distances[i]
-			Worst.id = graph.NeighborsID[i].Id
+			Worst.id = neighborID(graph.NeighborsID[i])
 			Worst.index = i
 		}
 	}
 	if Worst.distance > distance {
 		graph.Locks[v1Id].Lock()
-		graph.NeighborsID[Worst.index] = NeighborTuple{isNew: true, Id: v2Id}
+		graph.NeighborsID[Worst.index] = makeNeighbor(v2Id, true)
 		graph.Distances[Worst.index] = distance
 		graph.Locks[v1Id].Unlock()
 		removeReverseNeighbor(v1Id, Worst.id)
@@ -249,101 +225,79 @@ func insertNoreturn(v1Id, v2Id int, distance float32) int {
 		return 1
 	}
 	return 0
-
 }
 
-func tryInsert(Vert1 int, Vertex2 int, distance float32) int {
+func tryInsert(Vert1 int32, Vertex2 int32, distance float32) int32 {
 	Vertex1 := Vert1
 	if Vertex1 == Vertex2 {
-		return 0
+		return int32(0)
 	}
 	skipvertex1 := false
 	skipvertex2 := false
-
-	//Check to find the current neighbor with the longest distance for both vertices
-	//Type of this variable is [neighborID, Distance, Placement in neighbor list]
 	LongestNeighborVertex1 := make([]float32, 3)
 	LongestNeighborVertex2 := make([]float32, 3)
-	inserted := 0
+	inserted := int32(0)
 	for i := Vertex1 * graph.K; i < (Vertex1+1)*graph.K; i++ {
-		if graph.NeighborsID[i].Id == Vertex2 {
+		if neighborID(graph.NeighborsID[i]) == Vertex2 {
 			skipvertex1 = true
 			break
 		}
 		if LongestNeighborVertex1[1] == 0.0 || graph.Distances[i] > LongestNeighborVertex1[1] {
-			LongestNeighborVertex1[0] = float32(graph.NeighborsID[i].Id)
+			LongestNeighborVertex1[0] = float32(neighborID(graph.NeighborsID[i]))
 			LongestNeighborVertex1[1] = graph.Distances[i]
 			LongestNeighborVertex1[2] = float32(i)
 		}
 	}
 	for i := Vertex2 * graph.K; i < (Vertex2+1)*graph.K; i++ {
-		if graph.NeighborsID[i].Id == Vertex1 {
+		if neighborID(graph.NeighborsID[i]) == Vertex1 {
 			skipvertex2 = true
 			break
 		}
 		if LongestNeighborVertex2[1] == 0.0 || graph.Distances[i] > LongestNeighborVertex2[1] {
-			LongestNeighborVertex2[0] = float32(graph.NeighborsID[i].Id)
+			LongestNeighborVertex2[0] = float32(neighborID(graph.NeighborsID[i]))
 			LongestNeighborVertex2[1] = graph.Distances[i]
 			LongestNeighborVertex2[2] = float32(i)
 		}
 	}
-
-	//If the new distance is smaller than the longest distance, we can insert the new neighbor
 	if !skipvertex1 && distance < LongestNeighborVertex1[1] {
-		//Update the reverse neighbors of the removed neighbor and the new neighbor for vertex 1
-		removeReverseNeighbor(Vertex1, int(LongestNeighborVertex1[0]))
+		removeReverseNeighbor(Vertex1, int32(LongestNeighborVertex1[0]))
 		InsertNewReverseNeighbor(Vertex1, Vertex2)
-		//We need to lock the vertex before modifying its neighbors
 		graph.Locks[Vertex1].Lock()
-		//Insert the new neighbor
-		graph.NeighborsID[int(LongestNeighborVertex1[2])] = NeighborTuple{isNew: true, Id: Vertex2}
-		//Insert the new distance
-		graph.Distances[int(LongestNeighborVertex1[2])] = distance
-		//Unlock the vertex after modification
+		graph.NeighborsID[int32(LongestNeighborVertex1[2])] = makeNeighbor(Vertex2, true)
+		graph.Distances[int32(LongestNeighborVertex1[2])] = distance
 		graph.Locks[Vertex1].Unlock()
 		inserted++
-
 	}
-	//Same Process for the second vertex
 	if !skipvertex2 && distance < LongestNeighborVertex2[1] {
-		removeReverseNeighbor(Vertex2, int(LongestNeighborVertex2[0]))
+		removeReverseNeighbor(Vertex2, int32(LongestNeighborVertex2[0]))
 		InsertNewReverseNeighbor(Vertex2, Vertex1)
 		graph.Locks[Vertex2].Lock()
-		graph.NeighborsID[int(LongestNeighborVertex2[2])] = NeighborTuple{isNew: true, Id: Vertex1}
-		graph.Distances[int(LongestNeighborVertex2[2])] = distance
+		graph.NeighborsID[int32(LongestNeighborVertex2[2])] = makeNeighbor(Vertex1, true)
+		graph.Distances[int32(LongestNeighborVertex2[2])] = distance
 		graph.Locks[Vertex2].Unlock()
 		inserted++
-
 	}
 	return inserted
 }
 
-// Removes vertex1 from the reverse neighbor list of vertex2
-func removeReverseNeighbor(Vertex1, Vertex2 int) {
-	//We need to lock the vertex before modifying its reverse neighbors
+func removeReverseNeighbor(Vertex1, Vertex2 int32) {
 	graph.Locks[Vertex2].Lock()
-	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
+	revPointer := graph.ReverseNeighbors[Vertex2].Load()
 	for i, neighbor := range *revPointer {
 		if neighbor == Vertex1 {
-			//Remove the neighbor by swapping it with the last element and truncating the slice
 			(*revPointer)[i] = (*revPointer)[len(*revPointer)-1]
 			*revPointer = (*revPointer)[:len(*revPointer)-1]
-
 			break
 		}
 	}
-	graph.FreezeReverseNeighbors[Vertex2].Store(revPointer)
+	graph.ReverseNeighbors[Vertex2].Store(revPointer)
 	graph.Locks[Vertex2].Unlock()
 }
 
-// Inserts vertex1 into the reverse neighbor list of vertex2
-func InsertNewReverseNeighbor(Vertex1, Vertex2 int) {
-	//We need to lock the vertex before modifying its reverse neighbors
+func InsertNewReverseNeighbor(Vertex1, Vertex2 int32) {
 	graph.Locks[Vertex2].Lock()
-	//Insert the new neighbor by appending it to the slice
-	revPointer := graph.FreezeReverseNeighbors[Vertex2].Load()
+	revPointer := graph.ReverseNeighbors[Vertex2].Load()
 	*revPointer = append(*revPointer, Vertex1)
-	graph.FreezeReverseNeighbors[Vertex2].Store(revPointer)
-	//Unlock the vertex after modification
+	graph.ReverseNeighbors[Vertex2].Store(revPointer)
 	graph.Locks[Vertex2].Unlock()
 }

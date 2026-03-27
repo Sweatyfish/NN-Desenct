@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
 	"sync/atomic"
@@ -11,129 +12,144 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 )
 
-/* amount of neighbors to be considered for each point, can be changed to any number you want*/
-var k = 15
-var n = 5000
+// max n = 3001496
+var k = int32(15)
+var n = int32(3001496)
 var delta = 0.001
-var numThreads = 8
+var numThreads = 12
 var rho float32 = 0.5
-var benchmarking = true
+var benchmarking = false
+var benchmarkingReal = true
 var timeMeasure = false
+var checkMemory = false
 
-/* amount of verticies each lock resides over */
+// write pca dimensions
+var PCAcase = 4
 
-type NeighborTuple struct {
-	isNew bool
-	Id    int
+// 0 = 384 dimension
+// 1 = 320 dimension
+// 2 = 160 dimension
+// 3 = 136 dimension
+// 4 = 128 dimension
+// 5 = 120 dimension
+// 6 = 80  dimension
+var Dimensions int32
+
+// NeighborTuple is packed into a single int32 to save memory.
+// Negative value = new neighbor, positive = old neighbor.
+// ID is stored as abs(value). 0 is reserved, so IDs are 1-indexed internally.
+type NeighborTuple = int32
+
+func makeNeighbor(id int32, isNew bool) NeighborTuple {
+	if isNew {
+		return -int32(id + 1)
+	}
+	return int32(id + 1)
+}
+
+func neighborIsNew(t NeighborTuple) bool {
+	return t < 0
+}
+
+func neighborID(t NeighborTuple) int32 {
+	if t < 0 {
+		return int32(-t) - 1
+	}
+	return int32(t) - 1
+}
+
+func setOld(t *NeighborTuple) {
+	if *t < 0 {
+		*t = -*t
+	}
 }
 
 type Graph struct {
-	N, K, Dim              int
-	Data                   []float32 /*Prolly needs changing*/
-	NeighborsID            []NeighborTuple
-	ReverseNeighbors       []atomic.Pointer[[]int]
-	Distances              []float32
-	FreezeReverseNeighbors []atomic.Pointer[[]int]
-	Locks                  []sync.Mutex
+	N, K, Dim        int32
+	Data             []float32
+	NeighborsID      []NeighborTuple
+	ReverseNeighbors []atomic.Pointer[[]int32]
+	Distances        []float32
+	Locks            []sync.Mutex
 }
 
 var (
-	graph Graph
-	//This int counts the amount of new neighbors found in each iteration, it is used to check the stopping condition
-	//Remeber to use the associated lock when modifying this variable
-	newNeighborsLock  sync.Mutex
-	newNeighborsFound int
-	//This is used to count the amount of vertices that have been processed in each iteration, it is used to make sure all vertices are processed before starting a new iteration
-	//Remeber to use the associated lock when modifying this variable
-	counterLock sync.Mutex
-	counter     int
+	graph                   Graph
+	newNeighborsFoundAtomic int64
 )
 
+var counter int64
+
 type neighborInfo struct {
-	id       int
+	id       int32
 	distance float32
-	index    int
+	index    int32
 }
 
-func NNDecent(c chan int) {
-	//Instantiate the sets of old and new neighbors
-	oldNeighbors := mapset.NewSet[int]()
-	newNeighbors := mapset.NewSet[int]()
-	oldPrime := mapset.NewSet[int]()
-	newPrime := mapset.NewSet[int]()
+func NNDecent(c chan int32) {
+	oldNeighbors := mapset.NewSet[int32]()
+	newNeighbors := mapset.NewSet[int32]()
+	//oldPrime := mapset.NewSet[int32]()
+	newPrime := mapset.NewSet[int32]()
 
 	for true {
-		// Wait for a id to be sent on the channel and then process it
 		V := <-c
-		//Reset all the sets for a new iteration
+		addToNewNeighbours := int32(0)
 		oldNeighbors.Clear()
 		newNeighbors.Clear()
-		oldPrime.Clear()
+		//oldPrime.Clear()
 		newPrime.Clear()
-		//This will add up to be the amount of new neighbors this iteration on this vertex found
-		addToNewNeighbours := 0
 
-		/*We go through all the neighbours and check whether they are new or old neighbours */
 		for _, neighbor := range getNeighbor(V) {
-			if neighbor.Id != V {
-				if neighbor.isNew {
-					newNeighbors.Add(neighbor.Id)
+			id := neighborID(neighbor)
+			if id != V {
+				if neighborIsNew(neighbor) {
+					newNeighbors.Add(id)
 				} else {
-					oldNeighbors.Add(neighbor.Id)
+					oldNeighbors.Add(id)
 				}
 			}
 		}
 
-		/*Iterate over the reverse neighbors of V and add them to the corresponding sets based on whether they are new or old neighbors.*/
-		/*We take reverseneighbours and add them to two seperate lists*/
 		for neighbor := range newNeighbors.Iter() {
 			for _, reverseNeighbor := range getReverseNeighbor(neighbor) {
 				newPrime.Add(reverseNeighbor)
 			}
 		}
-		for neighbor := range oldNeighbors.Iter() {
+		/*for neighbor := range oldNeighbors.Iter() {
 			for _, reverseNeighbor := range getReverseNeighbor(neighbor) {
 				oldPrime.Add(reverseNeighbor)
 			}
-		}
+		}*/
 
-		//Union operations on the 4 sets with sampling, also making them into a slice
 		newNeighbors = newNeighbors.Union(sampleKRandomNeighbors(newPrime, rho))
-		oldNeighbors = oldNeighbors.Union(sampleKRandomNeighbors(oldPrime, rho))
+		//oldNeighbors = oldNeighbors.Union(sampleKRandomNeighbors(oldPrime, rho))
+		//oldPrime.Clear()
+		newPrime.Clear()
 		newNeighboursList := newNeighbors.ToSlice()
 		oldNeighboursList := oldNeighbors.ToSlice()
-		//Set all current neighbors and reverse neighbors to old neighbors for the next iteration needs to be done before we begin changing neighbors
+		oldNeighbors.Clear()
+		newNeighbors.Clear()
+
 		neighbors := getNeighbor(V)
 		for i := range neighbors {
-			neighbors[i].isNew = false
+			setOld(&neighbors[i])
 		}
 
-		//The same for the reverse neighbors
-		//This (!IMPORTANT!) This is SUBOPTIMAL, but currently i dont now of a better way to do this, since no thread has the full picture of which are new or old reverse neighbors
-		//The main loop checking neighbors neighbors against each other
 		NxNMatrix := CosineDistanceBatchN(newNeighboursList)
 		NxOMatrix := CosineDistanceBatchNM(newNeighboursList, oldNeighboursList)
 
-		// Indexes
-		idx1 := 0
-		idx2 := 0
-		added := 0
+		idx1 := int32(0)
+		idx2 := int32(0)
+		added := int32(0)
 
-		// This is the distance from i to it's worst neigbour
-		//var worstPrimary neighborInfo
 		var worstPrimaryList []neighborInfo
-		// This is the distance from j to it's worst neigbour
-		//var worstSecondary neighborInfo
-		newNlen := len(newNeighboursList)
-		oldNlen := len(oldNeighboursList)
+		newNlen := int32(len(newNeighboursList))
+		oldNlen := int32(len(oldNeighboursList))
 		worstPrimaryList = getWorstNeighborInfoBatch(newNeighboursList)
-		for i := 0; i < newNlen; i++ {
-			//worstPrimary = getWorstNeighborInfo(newNeighboursList[i])
-			// fmt.Println(worstPrimary.distance)
-			for j := i + 1; j < newNlen; j++ {
-				//worstSecondary = getWorstNeighborInfo(newNeighboursList[i])
+		for i := int32(0); i < newNlen; i++ {
+			for j := i + int32(1); j < newNlen; j++ {
 				dist := NxNMatrix[idx1]
-				// If the worst neigbour for i is worse than the neigbour we are checking with replace that neigbour
 				if worstPrimaryList[i].distance > dist {
 					added, worstPrimaryList[i] = insert(newNeighboursList[i], newNeighboursList[j], worstPrimaryList[i], dist)
 					addToNewNeighbours += added
@@ -143,9 +159,8 @@ func NNDecent(c chan int) {
 					addToNewNeighbours += added
 				}
 				idx1++
-
 			}
-			for j := 0; j < oldNlen; j++ {
+			for j := int32(0); j < oldNlen; j++ {
 				dist := NxOMatrix[idx2]
 				idx2++
 				if worstPrimaryList[i].distance > dist {
@@ -155,20 +170,14 @@ func NNDecent(c chan int) {
 			}
 		}
 
-		//Adding the amount of new neighbors found to the total amount of new neighbors found in this iteration
-		newNeighborsLock.Lock()
-		newNeighborsFound += addToNewNeighbours
-		newNeighborsLock.Unlock()
+		atomic.AddInt64(&newNeighborsFoundAtomic, int64(addToNewNeighbours))
 
-		//Adding a finished vertex to the counter lock
-		counterLock.Lock()
-		counter++
-		counterLock.Unlock()
+		atomic.AddInt64(&counter, 1)
 	}
 }
 
 func main() {
-	// Start CPU profiling
+
 	f, err := os.Create("cpu.prof")
 	if err != nil {
 		panic(err)
@@ -178,34 +187,24 @@ func main() {
 		pprof.StopCPUProfile()
 		f.Close()
 	}()
-	graph = initGraph(n, 384, k)
-	//Instastiate to -1 for entering the first loop
-	newNeighborsFound = -1
-	c := make(chan int)
-	//Start the NNDescent algorithm with the specified amount of threads
+
+	graph = initGraph(n, k)
+	atomic.StoreInt64(&newNeighborsFoundAtomic, -1)
+	c := make(chan int32)
 	for i := 0; i < numThreads; i++ {
 		go NNDecent(c)
 	}
+
 	iterations := 0
-	//This master threads will send vertex ids to the worker threads and check the stopping condition after each iteration, it will also update the reverse neighbors with the freeze reverse neighbors after each iteration
-	//Updating the reverse neighbors could be multithreaded as well, but would require deeper changes to the code, so I decided to keep it single threaded for now
-	//The way we currently keep track of which neighbors to switch should also be a heap currently is not optimal
 	totalTimeStart := time.Now()
-	for float64(newNeighborsFound) > delta*float64(k)*float64(n) || newNeighborsFound == -1 {
+	for atomic.LoadInt64(&newNeighborsFoundAtomic) > int64(delta*float64(k)*float64(n)) || atomic.LoadInt64(&newNeighborsFoundAtomic) == -1 {
 		fmt.Println("Iteration number:", iterations)
 
-		newNeighborsLock.Lock()
-		newNeighborsFound = 0
-		newNeighborsLock.Unlock()
+		atomic.StoreInt64(&newNeighborsFoundAtomic, 0)
 
 		start := time.Now()
-		for i := 0; i < n; i++ {
+		for i := int32(0); i < n; i++ {
 			c <- i
-		}
-
-		//Wait until all vertices have been processed before procedding
-		for counter != n {
-			time.Sleep(50 * time.Millisecond)
 		}
 
 		end := time.Now()
@@ -213,40 +212,49 @@ func main() {
 			fmt.Println("Time taken to process all vertices in this iteration:", end.Sub(start))
 		}
 
-		//Reset the counter for the next iteration
-		counterLock.Lock()
-		counter = 0
-		counterLock.Unlock()
-		//We load all data from the freeze reverse neighbors into the reverse neighbor
-		start = time.Now()
-		for i := 0; i < n; i++ {
-			//We need to make a copy of the slice because otherwise we would be modifying the same slice for all vertices that share the same reverse neighbor
-			ListToCopy := *graph.FreezeReverseNeighbors[i].Load()
-			newSlice := make([]int, len(ListToCopy))
-			copy(newSlice, ListToCopy)
-			graph.ReverseNeighbors[i].Store(&newSlice)
+		for atomic.LoadInt64(&counter) != int64(n) {
+			time.Sleep(50 * time.Millisecond)
 		}
+		atomic.StoreInt64(&counter, 0)
 
-		end = time.Now()
 		if timeMeasure {
 			fmt.Println("Time taken to update reverse neighbors:", end.Sub(start))
 		}
 
 		iterations++
-		fmt.Println("New neighbors found in this iteration:", newNeighborsFound)
+		fmt.Println("New neighbors found in this iteration:", atomic.LoadInt64(&newNeighborsFoundAtomic))
 	}
+	fmt.Println("n: ", n, " k: ", k, " Dimensions: ", Dimensions, " threads: ", numThreads)
 
 	start := time.Now()
 	fmt.Println(time.Since(totalTimeStart))
 
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
-		accuracy := benchmark(graph)
+
+	}
+
+	var groundTruth [][]int
+	if benchmarkingReal {
+		groundTruth = loadGroundTruth("../../data/groundtruth.i32", n, k)
+		accuracy := benchmarkNew(graph, groundTruth)
 		fmt.Println("Calculated Accuracy is:", accuracy, "%")
+		fmt.Println("Accuracy considering n:", accuracy*float32((3001496/n)), "%")
 	}
 
 	end := time.Now()
 	if timeMeasure {
 		fmt.Println("Time taken to benchmark:", end.Sub(start))
 	}
+	if checkMemory {
+		f, err := os.Create("mem.prof")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		runtime.GC() // important: get up-to-date heap
+		pprof.WriteHeapProfile(f)
+	}
+
 }

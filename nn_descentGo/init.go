@@ -8,90 +8,91 @@ import (
 	"sync/atomic"
 )
 
-func loadNpyFirstN(filename string, n int, D int) ([]float32, error) {
+func loadNpyFirstN(filename string, n int32, Dimensions int32) ([]float32, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-
-	// Read the 128-byte header (typical .npy v1.0-1.1)
 	header := make([]byte, 128)
 	_, err = f.Read(header)
 	if err != nil {
 		return nil, err
 	}
-
-	// Allocate only n*D
-	data := make([]float32, n*D)
-
-	// Read first n rows directly
+	data := make([]float32, n*Dimensions)
 	err = binary.Read(f, binary.LittleEndian, &data)
 	if err != nil {
 		return nil, err
 	}
-
 	return data, nil
 }
 
-func initGraph(N, D, K int) Graph {
-	fmt.Println("Initializing Graph...")
+func initGraph(N, K int32) Graph {
 
-	data, err := loadNpyFirstN("../../data/train.npy", N, D)
+	fmt.Println("Initializing Graph...")
+	var (
+		data []float32
+		err  error
+	)
+	switch PCAcase {
+	case 0:
+		Dimensions = int32(384)
+		data, err = loadNpyFirstN("../../data/train.npy", N, Dimensions)
+	case 1:
+		Dimensions = int32(320)
+		data, err = loadNpyFirstN("../../data/reduced_320.npy", N, Dimensions)
+	case 2:
+		Dimensions = int32(160)
+		data, err = loadNpyFirstN("../../data/reduced_160.npy", N, Dimensions)
+	case 3:
+		Dimensions = int32(136)
+		data, err = loadNpyFirstN("../../data/reduced_136.npy", N, Dimensions)
+	case 4:
+		Dimensions = int32(128)
+		data, err = loadNpyFirstN("../../data/reduced_128.npy", N, Dimensions)
+	case 5:
+		Dimensions = int32(120)
+		data, err = loadNpyFirstN("../../data/reduced_120.npy", N, Dimensions)
+	case 6:
+		Dimensions = int32(80)
+		data, err = loadNpyFirstN("../../data/reduced_80.npy", N, Dimensions)
+	}
+
 	if err != nil {
 		panic(err)
 	}
 
 	graph := Graph{
-		N:                      N,
-		K:                      K,
-		Dim:                    D,
-		Data:                   make([]float32, N*D),
-		NeighborsID:            make([]NeighborTuple, N*K),
-		ReverseNeighbors:       make([]atomic.Pointer[[]int], N),
-		Distances:              make([]float32, N*K),
-		Locks:                  make([]sync.Mutex, N),
-		FreezeReverseNeighbors: make([]atomic.Pointer[[]int], N),
+		N:                N,
+		K:                K,
+		Dim:              Dimensions,
+		Data:             data,
+		NeighborsID:      make([]NeighborTuple, N*K),
+		ReverseNeighbors: make([]atomic.Pointer[[]int32], N),
+		Distances:        make([]float32, N*K),
+		Locks:            make([]sync.Mutex, N),
 	}
-	// Insert vector data into graph
-	copy(graph.Data, data)
 
-	// Initialize all atomic pointers to empty slices
-	for i := 0; i < N; i++ {
-		empty := make([]int, 0)
+	for i := int32(0); i < N; i++ {
+		empty := make([]int32, 0)
 		graph.ReverseNeighbors[i].Store(&empty)
-
-		emptyFreeze := make([]int, 0)
-		graph.FreezeReverseNeighbors[i].Store(&emptyFreeze)
 	}
-	// Initialize neighbors and distances
-	for I := 0; I < N; I++ {
+
+	for I := int32(0); I < N; I++ {
 		IdList := getKRandomNumbers(N, K, I)
-		for J := 0; J < K; J++ {
+		for J := int32(0); J < K; J++ {
 			if IdList[J] == I {
 				continue
 			}
-
-			// Set neighbor
-			graph.NeighborsID[I*K+J] = NeighborTuple{isNew: true, Id: IdList[J]}
+			graph.NeighborsID[I*K+J] = makeNeighbor(IdList[J], true)
 			graph.Distances[I*K+J] = CosineDistance(
-				graph.Data[I*D:(I+1)*D],
-				graph.Data[IdList[J]*D:(IdList[J]+1)*D],
+				graph.Data[I*Dimensions:(I+1)*Dimensions],
+				graph.Data[IdList[J]*Dimensions:(IdList[J]+1)*Dimensions],
 			)
-
-			// Add reverse neighbor
 			revPointer := graph.ReverseNeighbors[IdList[J]].Load()
 			*revPointer = append(*revPointer, I)
 			graph.ReverseNeighbors[IdList[J]].Store(revPointer)
 		}
-	}
-
-	// Deep copy ReverseNeighbors into FreezeReverseNeighbors
-	for i := 0; i < N; i++ {
-		ptr := graph.ReverseNeighbors[i].Load()
-		copySlice := make([]int, len(*ptr))
-		copy(copySlice, *ptr)
-		graph.FreezeReverseNeighbors[i].Store(&copySlice)
 	}
 
 	fmt.Println("Graph Initialized")
