@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 )
@@ -33,6 +35,37 @@ func benchmark(graph Graph) float32 {
 	}
 	wg.Wait()
 	return float32(totalCorrect) / float32(totalPossible) * 100
+}
+func benchmarkNew(graph Graph, groundTruth [][]int) float32 {
+    totalCorrect := int64(0)
+    totalPossible := graph.N * graph.K
+    var wg sync.WaitGroup
+
+    for i := 0; i < graph.N; i++ {
+        wg.Add(1)
+        go func(i int) {
+            defer wg.Done()
+
+            foundNN := graph.NeighborsID[i*graph.K : (i+1)*graph.K]
+            trueNN := groundTruth[i]
+
+            correct := 0
+            for _, neighbor := range foundNN {
+                nid := neighborID(neighbor)
+                for _, trueNeighbor := range trueNN {
+                    if nid == trueNeighbor {
+                        correct++
+                        break
+                    }
+                }
+            }
+
+            atomic.AddInt64(&totalCorrect, int64(correct))
+        }(i)
+    }
+
+    wg.Wait()
+    return float32(totalCorrect) / float32(totalPossible) * 100
 }
 
 func getTrueNN(vertex int) []int {
@@ -68,4 +101,21 @@ func findmax(slice []float32) []float32 {
 		}
 	}
 	return max
+}
+
+func loadGroundTruth(filename string, n, k int) [][]int {
+    file, _ := os.Open(filename)
+    defer file.Close()
+
+    data := make([]int32, n*k)
+    binary.Read(file, binary.LittleEndian, &data)
+
+    result := make([][]int, n)
+    for i := 0; i < n; i++ {
+        result[i] = make([]int, k)
+        for j := 0; j < k; j++ {
+            result[i][j] = int(data[i*k+j])
+        }
+    }
+    return result
 }

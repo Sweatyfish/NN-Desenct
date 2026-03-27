@@ -12,11 +12,12 @@ import (
 )
 
 var k = 15
-var n = 5000
+var n = 30000
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
-var benchmarking = true
+var benchmarking = false
+var benchmarkingReal = true
 var timeMeasure = false
 
 // NeighborTuple is packed into a single int32 to save memory.
@@ -59,11 +60,10 @@ type Graph struct {
 
 var (
 	graph             Graph
-	newNeighborsLock  sync.Mutex
-	newNeighborsFound int
-	counterLock       sync.Mutex
-	counter           int
+	newNeighborsFoundAtomic int64
 )
+
+var counter int64
 
 type neighborInfo struct {
 	id       int
@@ -79,10 +79,6 @@ func NNDecent(c chan int) {
 
 	for true {
 		V := <-c
-		oldNeighbors.Clear()
-		newNeighbors.Clear()
-		oldPrime.Clear()
-		newPrime.Clear()
 		addToNewNeighbours := 0
 
 		for _, neighbor := range getNeighbor(V) {
@@ -109,8 +105,12 @@ func NNDecent(c chan int) {
 
 		newNeighbors = newNeighbors.Union(sampleKRandomNeighbors(newPrime, rho))
 		oldNeighbors = oldNeighbors.Union(sampleKRandomNeighbors(oldPrime, rho))
+		oldPrime.Clear()
+		newPrime.Clear()
 		newNeighboursList := newNeighbors.ToSlice()
 		oldNeighboursList := oldNeighbors.ToSlice()
+		oldNeighbors.Clear()
+		newNeighbors.Clear()
 
 		neighbors := getNeighbor(V)
 		for i := range neighbors {
@@ -151,13 +151,9 @@ func NNDecent(c chan int) {
 			}
 		}
 
-		newNeighborsLock.Lock()
-		newNeighborsFound += addToNewNeighbours
-		newNeighborsLock.Unlock()
+		atomic.AddInt64(&newNeighborsFoundAtomic, int64(addToNewNeighbours))
 
-		counterLock.Lock()
-		counter++
-		counterLock.Unlock()
+		atomic.AddInt64(&counter, 1)
 	}
 }
 
@@ -173,7 +169,7 @@ func main() {
 	}()
 
 	graph = initGraph(n, 384, k)
-	newNeighborsFound = -1
+	atomic.StoreInt64(&newNeighborsFoundAtomic, -1)
 	c := make(chan int)
 	for i := 0; i < numThreads; i++ {
 		go NNDecent(c)
@@ -181,46 +177,51 @@ func main() {
 
 	iterations := 0
 	totalTimeStart := time.Now()
-	for float64(newNeighborsFound) > delta*float64(k)*float64(n) || newNeighborsFound == -1 {
+	for atomic.LoadInt64(&newNeighborsFoundAtomic) > int64(delta*float64(k)*float64(n)) || atomic.LoadInt64(&newNeighborsFoundAtomic) == -1 {
 		fmt.Println("Iteration number:", iterations)
 
-		newNeighborsLock.Lock()
-		newNeighborsFound = 0
-		newNeighborsLock.Unlock()
+		atomic.StoreInt64(&newNeighborsFoundAtomic, 0)
 
 		start := time.Now()
 		for i := 0; i < n; i++ {
 			c <- i
 		}
 
-		for counter != n {
-			time.Sleep(50 * time.Millisecond)
-		}
 
 		end := time.Now()
 		if timeMeasure {
 			fmt.Println("Time taken to process all vertices in this iteration:", end.Sub(start))
 		}
 
-		counterLock.Lock()
-		counter = 0
-		counterLock.Unlock()
+		for atomic.LoadInt64(&counter) != int64(n) {
+			time.Sleep(50 * time.Millisecond)
+		}
+		atomic.StoreInt64(&counter, 0)
 
 		if timeMeasure {
 			fmt.Println("Time taken to update reverse neighbors:", end.Sub(start))
 		}
 
 		iterations++
-		fmt.Println("New neighbors found in this iteration:", newNeighborsFound)
+		fmt.Println("New neighbors found in this iteration:", atomic.LoadInt64(&newNeighborsFoundAtomic))
 	}
 
 	start := time.Now()
 	fmt.Println(time.Since(totalTimeStart))
 
+	
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
 		accuracy := benchmark(graph)
 		fmt.Println("Calculated Accuracy is:", accuracy, "%")
+	}
+
+	var groundTruth [][]int
+	if benchmarkingReal {
+		groundTruth = loadGroundTruth("../../data/groundtruth.i32", n, k)
+		accuracy := benchmarkNew(graph, groundTruth)
+		fmt.Println("Calculated Accuracy is:", accuracy, "%")
+		fmt.Println("Accuracy considering n:", accuracy*float32((3012496/n)),"%")
 	}
 
 	end := time.Now()
