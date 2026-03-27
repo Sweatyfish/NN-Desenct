@@ -7,7 +7,7 @@ X = np.load("../../data/train.npy")
 
 X = X / np.linalg.norm(X, axis=1, keepdims=True)
 # Write amount of dimensions wanted
-D = 80
+D = 136
 
 pca = PCA(n_components=D)
 X_reduced = pca.fit_transform(X)

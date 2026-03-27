@@ -12,11 +12,11 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 )
 
-
+// max n = 3001496
 var k = int32(15)
-var n = int32(15000)
+var n = int32(3000)
 var delta = 0.001
-var numThreads = 8
+var numThreads = 12
 var rho float32 = 0.5
 var benchmarking = false
 var benchmarkingReal = true
@@ -24,12 +24,13 @@ var timeMeasure = false
 var checkMemory = false
 
 // write pca dimensions
-var PCAcase = 1
+var PCAcase = 3
 
 // 0 = 384 dimension
 // 1 = 320 dimension
 // 2 = 160 dimension
-// 3 = 80  dimension
+// 3 = 136  dimension
+// 4 = 80  dimension
 var Dimensions int32
 
 // NeighborTuple is packed into a single int32 to save memory.
@@ -71,7 +72,7 @@ type Graph struct {
 }
 
 var (
-	graph             Graph
+	graph                   Graph
 	newNeighborsFoundAtomic int64
 )
 
@@ -86,7 +87,7 @@ type neighborInfo struct {
 func NNDecent(c chan int32) {
 	oldNeighbors := mapset.NewSet[int32]()
 	newNeighbors := mapset.NewSet[int32]()
-	oldPrime := mapset.NewSet[int32]()
+	//oldPrime := mapset.NewSet[int32]()
 	newPrime := mapset.NewSet[int32]()
 
 	for true {
@@ -94,7 +95,7 @@ func NNDecent(c chan int32) {
 		addToNewNeighbours := int32(0)
 		oldNeighbors.Clear()
 		newNeighbors.Clear()
-		oldPrime.Clear()
+		//oldPrime.Clear()
 		newPrime.Clear()
 
 		for _, neighbor := range getNeighbor(V) {
@@ -113,15 +114,15 @@ func NNDecent(c chan int32) {
 				newPrime.Add(reverseNeighbor)
 			}
 		}
-		for neighbor := range oldNeighbors.Iter() {
+		/*for neighbor := range oldNeighbors.Iter() {
 			for _, reverseNeighbor := range getReverseNeighbor(neighbor) {
 				oldPrime.Add(reverseNeighbor)
 			}
-		}
+		}*/
 
 		newNeighbors = newNeighbors.Union(sampleKRandomNeighbors(newPrime, rho))
-		oldNeighbors = oldNeighbors.Union(sampleKRandomNeighbors(oldPrime, rho))
-		oldPrime.Clear()
+		//oldNeighbors = oldNeighbors.Union(sampleKRandomNeighbors(oldPrime, rho))
+		//oldPrime.Clear()
 		newPrime.Clear()
 		newNeighboursList := newNeighbors.ToSlice()
 		oldNeighboursList := oldNeighbors.ToSlice()
@@ -204,7 +205,6 @@ func main() {
 			c <- i
 		}
 
-
 		end := time.Now()
 		if timeMeasure {
 			fmt.Println("Time taken to process all vertices in this iteration:", end.Sub(start))
@@ -222,27 +222,14 @@ func main() {
 		iterations++
 		fmt.Println("New neighbors found in this iteration:", atomic.LoadInt64(&newNeighborsFoundAtomic))
 	}
+	fmt.Println("n: ", n, " k: ", k, " Dimensions: ", Dimensions, " threads: ", numThreads)
 
 	start := time.Now()
 	fmt.Println(time.Since(totalTimeStart))
 
-	
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
 
-		if PCAcase == 0 {
-			accuracy := benchmark(graph)
-			fmt.Println("Calculated Accuracy is:", accuracy, "%")
-		} else {
-			Dimensions = int32(320)
-			originaldata, err := loadNpyFirstN("../../data/train.npy", n, 384)
-			if err != nil {
-				panic(err)
-			}
-			graph.Data = originaldata
-			accuracy := benchmark(graph)
-			fmt.Println("Calculated Accuracy is:", accuracy, "%")
-		}
 	}
 
 	var groundTruth [][]int
@@ -250,7 +237,7 @@ func main() {
 		groundTruth = loadGroundTruth("../../data/groundtruth.i32", n, k)
 		accuracy := benchmarkNew(graph, groundTruth)
 		fmt.Println("Calculated Accuracy is:", accuracy, "%")
-		fmt.Println("Accuracy considering n:", accuracy*float32((3012496/n)),"%")
+		fmt.Println("Accuracy considering n:", accuracy*float32((3001496/n)), "%")
 	}
 
 	end := time.Now()

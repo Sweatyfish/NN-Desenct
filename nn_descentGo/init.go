@@ -47,6 +47,9 @@ func initGraph(N, K int32) Graph {
 		Dimensions = int32(160)
 		data, err = loadNpyFirstN("../../data/reduced_160.npy", N, Dimensions)
 	case 3:
+		Dimensions = int32(136)
+		data, err = loadNpyFirstN("../../data/reduced_136.npy", N, Dimensions)
+	case 4:
 		Dimensions = int32(80)
 		data, err = loadNpyFirstN("../../data/reduced_80.npy", N, Dimensions)
 	}
