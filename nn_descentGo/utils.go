@@ -40,7 +40,7 @@ func CosineDistanceBatchN(NeighbourList []int32) []float32 {
 			offsetb := Dimensions * NeighbourList[j]
 			b := graph.Data[offsetb : offsetb+Dimensions]
 			var sum float32
-			for l := int32(0); l < Dimensions; l += 8 {
+			for l := int32(0); l < Dimensions; l += 16 {
 				sum +=
 					a[l+0]*b[l+0] +
 						a[l+1]*b[l+1] +
@@ -49,8 +49,17 @@ func CosineDistanceBatchN(NeighbourList []int32) []float32 {
 						a[l+4]*b[l+4] +
 						a[l+5]*b[l+5] +
 						a[l+6]*b[l+6] +
-						a[l+7]*b[l+7]
+						a[l+7]*b[l+7] +
+						a[l+8]*b[l+8] +
+						a[l+9]*b[l+9] +
+						a[l+10]*b[l+10] +
+						a[l+11]*b[l+11] +
+						a[l+12]*b[l+12] +
+						a[l+13]*b[l+13] +
+						a[l+14]*b[l+14] +
+						a[l+15]*b[l+15]
 			}
+
 			out[idx] = 1 - sum
 			idx++
 		}

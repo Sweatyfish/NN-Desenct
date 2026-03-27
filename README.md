@@ -6,6 +6,22 @@ go tool pprof cpu.prof
 (pprof) top
 (pprof) list NNDecent
 
+
+var checkMemory = true
+if checkMemory {
+		f, err := os.Create("mem.prof")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		runtime.GC() // important: get up-to-date heap
+		pprof.WriteHeapProfile(f)
+	}
+
+go tool pprof mem.prof
+top
+
 Currently, we use:
 
 - `matplotlib.pyplot` to visualize the graph.

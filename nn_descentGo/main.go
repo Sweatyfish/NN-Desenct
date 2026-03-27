@@ -14,7 +14,7 @@ import (
 
 // max n = 3001496
 var k = int32(15)
-var n = int32(3000)
+var n = int32(3001496)
 var delta = 0.001
 var numThreads = 12
 var rho float32 = 0.5
@@ -24,13 +24,15 @@ var timeMeasure = false
 var checkMemory = false
 
 // write pca dimensions
-var PCAcase = 3
+var PCAcase = 4
 
 // 0 = 384 dimension
 // 1 = 320 dimension
 // 2 = 160 dimension
-// 3 = 136  dimension
-// 4 = 80  dimension
+// 3 = 136 dimension
+// 4 = 128 dimension
+// 5 = 120 dimension
+// 6 = 80  dimension
 var Dimensions int32
 
 // NeighborTuple is packed into a single int32 to save memory.
