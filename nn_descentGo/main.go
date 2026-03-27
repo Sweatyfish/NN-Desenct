@@ -22,11 +22,12 @@ var timeMeasure = false
 var checkMemory = false
 
 // write pca dimensions
-var PCAcase = 2
+var PCAcase = 1
 
 // 0 = 384 dimension
 // 1 = 320 dimension
 // 2 = 160 dimension
+// 3 = 80  dimension
 var Dimensions int32
 
 // NeighborTuple is packed into a single int32 to save memory.
@@ -229,8 +230,20 @@ func main() {
 
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
-		accuracy := benchmark(graph)
-		fmt.Println("Calculated Accuracy is:", accuracy, "%")
+
+		if PCAcase == 0 {
+			accuracy := benchmark(graph)
+			fmt.Println("Calculated Accuracy is:", accuracy, "%")
+		} else {
+			Dimensions = int32(320)
+			originaldata, err := loadNpyFirstN("../../data/train.npy", n, 384)
+			if err != nil {
+				panic(err)
+			}
+			graph.Data = originaldata
+			accuracy := benchmark(graph)
+			fmt.Println("Calculated Accuracy is:", accuracy, "%")
+		}
 	}
 
 	end := time.Now()
