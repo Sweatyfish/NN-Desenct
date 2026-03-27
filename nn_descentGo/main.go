@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
 	"sync/atomic"
@@ -11,21 +12,32 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 )
 
-var k = 15
-var n = 30000
+
+var k = int32(15)
+var n = int32(15000)
 var delta = 0.001
 var numThreads = 8
 var rho float32 = 0.5
 var benchmarking = false
 var benchmarkingReal = true
 var timeMeasure = false
+var checkMemory = false
+
+// write pca dimensions
+var PCAcase = 1
+
+// 0 = 384 dimension
+// 1 = 320 dimension
+// 2 = 160 dimension
+// 3 = 80  dimension
+var Dimensions int32
 
 // NeighborTuple is packed into a single int32 to save memory.
 // Negative value = new neighbor, positive = old neighbor.
 // ID is stored as abs(value). 0 is reserved, so IDs are 1-indexed internally.
 type NeighborTuple = int32
 
-func makeNeighbor(id int, isNew bool) NeighborTuple {
+func makeNeighbor(id int32, isNew bool) NeighborTuple {
 	if isNew {
 		return -int32(id + 1)
 	}
@@ -36,11 +48,11 @@ func neighborIsNew(t NeighborTuple) bool {
 	return t < 0
 }
 
-func neighborID(t NeighborTuple) int {
+func neighborID(t NeighborTuple) int32 {
 	if t < 0 {
-		return int(-t) - 1
+		return int32(-t) - 1
 	}
-	return int(t) - 1
+	return int32(t) - 1
 }
 
 func setOld(t *NeighborTuple) {
@@ -50,10 +62,10 @@ func setOld(t *NeighborTuple) {
 }
 
 type Graph struct {
-	N, K, Dim        int
+	N, K, Dim        int32
 	Data             []float32
 	NeighborsID      []NeighborTuple
-	ReverseNeighbors []atomic.Pointer[[]int]
+	ReverseNeighbors []atomic.Pointer[[]int32]
 	Distances        []float32
 	Locks            []sync.Mutex
 }
@@ -66,20 +78,24 @@ var (
 var counter int64
 
 type neighborInfo struct {
-	id       int
+	id       int32
 	distance float32
-	index    int
+	index    int32
 }
 
-func NNDecent(c chan int) {
-	oldNeighbors := mapset.NewSet[int]()
-	newNeighbors := mapset.NewSet[int]()
-	oldPrime := mapset.NewSet[int]()
-	newPrime := mapset.NewSet[int]()
+func NNDecent(c chan int32) {
+	oldNeighbors := mapset.NewSet[int32]()
+	newNeighbors := mapset.NewSet[int32]()
+	oldPrime := mapset.NewSet[int32]()
+	newPrime := mapset.NewSet[int32]()
 
 	for true {
 		V := <-c
-		addToNewNeighbours := 0
+		addToNewNeighbours := int32(0)
+		oldNeighbors.Clear()
+		newNeighbors.Clear()
+		oldPrime.Clear()
+		newPrime.Clear()
 
 		for _, neighbor := range getNeighbor(V) {
 			id := neighborID(neighbor)
@@ -120,16 +136,16 @@ func NNDecent(c chan int) {
 		NxNMatrix := CosineDistanceBatchN(newNeighboursList)
 		NxOMatrix := CosineDistanceBatchNM(newNeighboursList, oldNeighboursList)
 
-		idx1 := 0
-		idx2 := 0
-		added := 0
+		idx1 := int32(0)
+		idx2 := int32(0)
+		added := int32(0)
 
 		var worstPrimaryList []neighborInfo
-		newNlen := len(newNeighboursList)
-		oldNlen := len(oldNeighboursList)
+		newNlen := int32(len(newNeighboursList))
+		oldNlen := int32(len(oldNeighboursList))
 		worstPrimaryList = getWorstNeighborInfoBatch(newNeighboursList)
-		for i := 0; i < newNlen; i++ {
-			for j := i + 1; j < newNlen; j++ {
+		for i := int32(0); i < newNlen; i++ {
+			for j := i + int32(1); j < newNlen; j++ {
 				dist := NxNMatrix[idx1]
 				if worstPrimaryList[i].distance > dist {
 					added, worstPrimaryList[i] = insert(newNeighboursList[i], newNeighboursList[j], worstPrimaryList[i], dist)
@@ -141,7 +157,7 @@ func NNDecent(c chan int) {
 				}
 				idx1++
 			}
-			for j := 0; j < oldNlen; j++ {
+			for j := int32(0); j < oldNlen; j++ {
 				dist := NxOMatrix[idx2]
 				idx2++
 				if worstPrimaryList[i].distance > dist {
@@ -158,6 +174,7 @@ func NNDecent(c chan int) {
 }
 
 func main() {
+
 	f, err := os.Create("cpu.prof")
 	if err != nil {
 		panic(err)
@@ -168,9 +185,9 @@ func main() {
 		f.Close()
 	}()
 
-	graph = initGraph(n, 384, k)
+	graph = initGraph(n, k)
 	atomic.StoreInt64(&newNeighborsFoundAtomic, -1)
-	c := make(chan int)
+	c := make(chan int32)
 	for i := 0; i < numThreads; i++ {
 		go NNDecent(c)
 	}
@@ -183,7 +200,7 @@ func main() {
 		atomic.StoreInt64(&newNeighborsFoundAtomic, 0)
 
 		start := time.Now()
-		for i := 0; i < n; i++ {
+		for i := int32(0); i < n; i++ {
 			c <- i
 		}
 
@@ -212,8 +229,20 @@ func main() {
 	
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
-		accuracy := benchmark(graph)
-		fmt.Println("Calculated Accuracy is:", accuracy, "%")
+
+		if PCAcase == 0 {
+			accuracy := benchmark(graph)
+			fmt.Println("Calculated Accuracy is:", accuracy, "%")
+		} else {
+			Dimensions = int32(320)
+			originaldata, err := loadNpyFirstN("../../data/train.npy", n, 384)
+			if err != nil {
+				panic(err)
+			}
+			graph.Data = originaldata
+			accuracy := benchmark(graph)
+			fmt.Println("Calculated Accuracy is:", accuracy, "%")
+		}
 	}
 
 	var groundTruth [][]int
@@ -228,4 +257,15 @@ func main() {
 	if timeMeasure {
 		fmt.Println("Time taken to benchmark:", end.Sub(start))
 	}
+	if checkMemory {
+		f, err := os.Create("mem.prof")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		runtime.GC() // important: get up-to-date heap
+		pprof.WriteHeapProfile(f)
+	}
+
 }
