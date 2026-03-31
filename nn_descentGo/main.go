@@ -14,7 +14,7 @@ import (
 
 // max n = 3001496
 var k = int32(15)
-var n = int32(3001496)
+var n = int32(800000)
 var delta = 0.001
 var numThreads = 12
 var rho float32 = 0.5
@@ -239,7 +239,7 @@ func main() {
 		groundTruth = loadGroundTruth("../../data/groundtruth.i32", n, k)
 		accuracy := benchmarkNew(graph, groundTruth)
 		fmt.Println("Calculated Accuracy is:", accuracy, "%")
-		fmt.Println("Accuracy considering n:", accuracy*float32((3001496/n)), "%")
+		fmt.Println("Accuracy considering n:", accuracy * (float32(3001496) / float32(n)), "%")
 	}
 
 	end := time.Now()
