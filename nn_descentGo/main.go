@@ -24,12 +24,12 @@ var timeMeasure = false
 var checkMemory = false
 
 // write pca dimensions
-var PCAcase = 4
+var PCAcase = 3
 
 // 0 = 384 dimension
 // 1 = 320 dimension
 // 2 = 160 dimension
-// 3 = 136 dimension
+// 3 = 144 dimension
 // 4 = 128 dimension
 // 5 = 120 dimension
 // 6 = 80  dimension
@@ -224,7 +224,7 @@ func main() {
 		iterations++
 		fmt.Println("New neighbors found in this iteration:", atomic.LoadInt64(&newNeighborsFoundAtomic))
 	}
-	fmt.Println("n: ", n, " k: ", k, " Dimensions: ", Dimensions, " threads: ", numThreads)
+	fmt.Println("n: ", n, " k: ", k, " Dimensions: ", Dimensions, " threads: ", numThreads, " rho: ", rho, " delta: ", delta)
 
 	start := time.Now()
 	fmt.Println(time.Since(totalTimeStart))
@@ -239,7 +239,7 @@ func main() {
 		groundTruth = loadGroundTruth("../../data/groundtruth.i32", n, k)
 		accuracy := benchmarkNew(graph, groundTruth)
 		fmt.Println("Calculated Accuracy is:", accuracy, "%")
-		fmt.Println("Accuracy considering n:", accuracy * (float32(3001496) / float32(n)), "%")
+		fmt.Println("Accuracy considering n:", accuracy*(float32(3001496)/float32(n)), "%")
 	}
 
 	end := time.Now()
