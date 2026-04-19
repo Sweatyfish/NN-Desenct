@@ -1,8 +1,11 @@
+import os
 import h5py
 import numpy as np
 
 # Load the HDF5 file
-f = h5py.File("../../data/benchmark-dev-gooaq.h5", "r")
+h5_path = "../../../../mnt/large_storage/2026_nndescent/benchmark-dev-gooaq.h5"
+f = h5py.File(h5_path, "r")
+
 
 # Inspect the keys
 print("Keys in HDF5 file:", list(f.keys()))
@@ -24,4 +27,7 @@ print("Row 100, dimension 50:", train_data[100, 50])
 
 # Example: print last row
 print("Last row:", train_data[-1])
-# np.save("train.npy", train_data)
+
+out_path = os.path.join(os.path.dirname(h5_path), "train.npy")
+np.save(out_path, train_data)
+print("Saved to:", out_path)

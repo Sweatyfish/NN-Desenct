@@ -8,15 +8,15 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
+	"strings"
 	mapset "github.com/deckarep/golang-set/v2"
 )
 
 // max n = 3001496
 var k = int32(15)
-var n = int32(800000)
+var n = int32(2500000)
 var delta = 0.001
-var numThreads = 12
+var numThreads = 52
 var rho float32 = 0.5
 var benchmarking = false
 var benchmarkingReal = true
@@ -24,15 +24,21 @@ var timeMeasure = false
 var checkMemory = false
 
 // write pca dimensions
-var PCAcase = 3
+var PCAcase = 4
 
-// 0 = 384 dimension
-// 1 = 320 dimension
-// 2 = 160 dimension
-// 3 = 144 dimension
-// 4 = 128 dimension
-// 5 = 120 dimension
-// 6 = 80  dimension
+        // 0  = 16  dimension
+// 1  = 32  dimension
+// 2  = 64  dimension
+// 3  = 96  dimension
+// 4  = 128 dimension
+// 5  = 160 dimension
+// 6  = 192 dimension
+// 7  = 224 dimension
+// 8  = 256 dimension
+// 9  = 288 dimension
+// 10 = 320 dimension
+// 11 = 352 dimension
+// 12 = 384 dimension
 var Dimensions int32
 
 // NeighborTuple is packed into a single int32 to save memory.
@@ -227,7 +233,10 @@ func main() {
 	fmt.Println("n: ", n, " k: ", k, " Dimensions: ", Dimensions, " threads: ", numThreads, " rho: ", rho, " delta: ", delta)
 
 	start := time.Now()
-	fmt.Println(time.Since(totalTimeStart))
+	t := time.Since(totalTimeStart).Seconds()
+	s := fmt.Sprintf("%.3f", t) // choose precision you want
+	s = strings.ReplaceAll(s, ".", ",")
+	fmt.Println(s)
 
 	if benchmarking {
 		fmt.Println("Calculating accuracy...")
@@ -236,10 +245,14 @@ func main() {
 
 	var groundTruth [][]int
 	if benchmarkingReal {
-		groundTruth = loadGroundTruth("../../data/groundtruth.i32", n, k)
+		groundTruth = loadGroundTruth("../../../../mnt/large_storage/2026_nndescent/groundtruth.i32", n, k)
 		accuracy := benchmarkNew(graph, groundTruth)
 		fmt.Println("Calculated Accuracy is:", accuracy, "%")
-		fmt.Println("Accuracy considering n:", accuracy*(float32(3001496)/float32(n)), "%")
+	  	value := accuracy * (float32(3001496) / float32(n))
+
+		formatted := strings.Replace(fmt.Sprintf("%.6f", value), ".", ",", 1)
+
+		fmt.Println("Accuracy considering n:", formatted+"%")
 	}
 
 	end := time.Now()
