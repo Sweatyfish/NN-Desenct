@@ -22,7 +22,7 @@ WORKDIR /app
 COPY --from=builder /app/app .
  
 
-COPY Data/ ./Data/
+COPY ../../../../mnt/large_storage/2026_nndescent/ ../../../../mnt/large_storage/2026_nndescent/
  
 CMD ["./app"]
  
